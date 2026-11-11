@@ -397,7 +397,7 @@
     },
     {
       "parameters": {
-        "url": "=https://cep.awesomeapi.com.br/json/{{ $json.cep }}",
+        "url": "=https://brasilapi.com.br/api/cep/v2/{{ $json.cep }}",
         "options": {
           "timeout": 15000,
           "response": {
@@ -419,7 +419,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// LER CEP: pega latitude/longitude e cidade devolvidas pelo serviço de CEP.\n// O CEP não é salvo no banco.\nconst r = $input.first().json || {};\nconst lat = parseFloat(r.lat);\nconst lon = parseFloat(r.lng);\nconst temCoord = Number.isFinite(lat) && Number.isFinite(lon) && !(lat === 0 && lon === 0);\nconst municipio = (r.city || '').toString().trim();\n\nreturn [{\n  json: {\n    lat: temCoord ? String(lat) : 'x',\n    lon: temCoord ? String(lon) : 'x',\n    municipio,\n    municipio_b64: Buffer.from(municipio || ' ', 'utf8').toString('base64'),\n    cep_encontrado: temCoord || !!municipio,\n  },\n}];\n"
+        "jsCode": "// LER CEP: pega latitude/longitude e cidade devolvidas pelo serviço de CEP.\n// Serviço usado: BrasilAPI (https://brasilapi.com.br/api/cep/v2/CEP), gratuito e sem chave.\n// Também entende o formato da AwesomeAPI, caso alguém troque o serviço.\n// O CEP não é salvo no banco.\nconst r = $input.first().json || {};\nconst coord = (r.location && r.location.coordinates) || {};\nconst lat = parseFloat(coord.latitude ?? r.lat);\nconst lon = parseFloat(coord.longitude ?? r.lng);\nconst temCoord = Number.isFinite(lat) && Number.isFinite(lon) && !(lat === 0 && lon === 0);\nconst municipio = (r.city || '').toString().trim();\n\nreturn [{\n  json: {\n    lat: temCoord ? String(lat) : 'x',\n    lon: temCoord ? String(lon) : 'x',\n    municipio,\n    municipio_b64: Buffer.from(municipio || ' ', 'utf8').toString('base64'),\n    cep_encontrado: temCoord || !!municipio,\n  },\n}];\n"
       },
       "id": "00000000-0000-4000-8000-000000000021",
       "name": "Ler CEP",

@@ -106,7 +106,7 @@ const nodes = [
 
   {
     parameters: {
-      url: '=https://cep.awesomeapi.com.br/json/{{ $json.cep }}',
+      url: '=https://brasilapi.com.br/api/cep/v2/{{ $json.cep }}',
       options: { timeout: 15000, response: { response: { neverError: true } } },
     },
     id: id(), name: 'CEP → coordenadas', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [1100, 560],
