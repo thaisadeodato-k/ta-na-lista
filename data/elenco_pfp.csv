@@ -1,0 +1,42 @@
+id,chave,principio_ativo,concentracao,forma,indicacao,tipo
+1,ipratropio,brometo de ipratrópio,"0,02mg",aerossol oral (spray),ASMA,medicamento
+2,ipratropio,brometo de ipratrópio,"0,25mg",solução para inalação,ASMA,medicamento
+3,beclometasona,dipropionato de beclometasona,200mcg,inalatório (conferir apresentação),ASMA,medicamento
+4,beclometasona,dipropionato de beclometasona,250mcg,inalatório (conferir apresentação),ASMA,medicamento
+5,beclometasona,dipropionato de beclometasona,50mcg,inalatório (conferir apresentação),ASMA,medicamento
+6,salbutamol,sulfato de salbutamol,100mcg,aerossol oral (spray),ASMA,medicamento
+7,salbutamol,sulfato de salbutamol,5mg,solução para inalação,ASMA,medicamento
+8,metformina,cloridrato de metformina,500mg,comprimido,DIABETES,medicamento
+9,metformina,cloridrato de metformina,500mg - ação prolongada,comprimido de liberação prolongada,DIABETES,medicamento
+10,metformina,cloridrato de metformina,850mg,comprimido,DIABETES,medicamento
+11,glibenclamida,glibenclamida,5mg,comprimido,DIABETES,medicamento
+12,insulina regular,insulina humana regular,100ui/ml,solução injetável,DIABETES,medicamento
+13,insulina nph,insulina humana,100ui/ml,suspensão injetável,DIABETES,medicamento
+14,atenolol,atenolol,25mg,comprimido,HIPERTENSÃO,medicamento
+15,anlodipino,besilato de anlodipino,5 mg,comprimido,HIPERTENSÃO,medicamento
+16,captopril,captopril,25mg,comprimido,HIPERTENSÃO,medicamento
+17,propranolol,cloridrato de propranolol,40mg,comprimido,HIPERTENSÃO,medicamento
+18,hidroclorotiazida,hidroclorotiazida,25mg,comprimido,HIPERTENSÃO,medicamento
+19,losartana,losartana potássica,50mg,comprimido,HIPERTENSÃO,medicamento
+20,enalapril,maleato de enalapril,10mg,comprimido,HIPERTENSÃO,medicamento
+21,espironolactona,espironolactona,25 mg,comprimido,HIPERTENSÃO,medicamento
+22,furosemida,furosemida,40 mg,comprimido,HIPERTENSÃO,medicamento
+23,metoprolol,succinato de metoprolol,25 mg,comprimido de liberação prolongada,HIPERTENSÃO,medicamento
+24,medroxiprogesterona,acetato de medroxiprogesterona,150mg,suspensão injetável,ANTICONCEPÇÃO,medicamento
+25,etinilestradiol+levonorgestrel,etinilestradiol + levonorgestrel,"0,03mg + 0,15mg",comprimido,ANTICONCEPÇÃO,medicamento
+26,noretisterona,noretisterona,"0,35mg",comprimido,ANTICONCEPÇÃO,medicamento
+27,estradiol+noretisterona,valerato de estradiol + enantato de noretisterona,5mg + 50mg,solução injetável,ANTICONCEPÇÃO,medicamento
+28,alendronato,alendronato de sódio,70mg,comprimido,OSTEOPOROSE,medicamento
+29,sinvastatina,sinvastatina,10mg,comprimido,DISLIPIDEMIA,medicamento
+30,sinvastatina,sinvastatina,20mg,comprimido,DISLIPIDEMIA,medicamento
+31,sinvastatina,sinvastatina,40mg,comprimido,DISLIPIDEMIA,medicamento
+32,carbidopa+levodopa,carbidopa + levodopa,25mg + 250mg,comprimido,DOENÇA DE PARKINSON,medicamento
+33,benserazida+levodopa,cloridrato de benserazida + levodopa,25mg + 100mg,comprimido,DOENÇA DE PARKINSON,medicamento
+34,timolol,maleato de timolol,"2,5mg",colírio,GLAUCOMA,medicamento
+35,timolol,maleato de timolol,5mg,colírio,GLAUCOMA,medicamento
+36,budesonida,budesonida,32mcg,spray nasal,RINITE,medicamento
+37,budesonida,budesonida,50mcg,spray nasal,RINITE,medicamento
+38,beclometasona,dipropionato de beclometasona,50mcg/dose,spray nasal,RINITE,medicamento
+39,dapagliflozina,dapagliflozina,10 mg,comprimido,DIABETES MELLITUS + DOENÇA CARDIOVASCULAR,medicamento
+40,absorvente,absorvente higiênico,-,-,DIGNIDADE MENSTRUAL,insumo
+41,fralda geriatrica,fralda geriátrica,-,-,INCONTINÊNCIA URINÁRIA,insumo

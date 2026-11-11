@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "assunto": { "type": "string", "enum": ["remedio", "pergunta_clinica", "fora_do_escopo"] },
+    "legivel": { "type": "boolean" },
+    "data_receita": { "anyOf": [{ "type": "string", "format": "date" }, { "type": "null" }] },
+    "medicamentos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "nome_escrito": { "type": "string" },
+          "concentracao": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "confianca": { "type": "string", "enum": ["alta", "media", "baixa"] }
+        },
+        "required": ["nome_escrito", "concentracao", "confianca"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["assunto", "legivel", "data_receita", "medicamentos"],
+  "additionalProperties": false
+}
