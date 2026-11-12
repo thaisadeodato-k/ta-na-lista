@@ -85,6 +85,20 @@
 | 33 | aguardando_cep | `sao paolo` (com erro) | reconhece São Paulo | Farmácias de São Paulo/SP + dica para mandar CEP ou bairro. |
 | 34 | aguardando_cep | `xyzabc` | `cidade_nao_achada` | "Não achei essa cidade… manda o CEP". O estado continua aguardando_cep. |
 
+## Conversa natural (lugar junto com o remédio, correção do lugar)
+
+| # | Estado inicial | Mensagem da pessoa | Decisão do banco | Resposta esperada do Zé |
+|---|---|---|---|---|
+| 35 | aguardando_receita | áudio "tomo losartana 50 e moro na Vila Mariana em São Paulo" | losartana `na_lista`; lugar = Vila Mariana, São Paulo/SP | Confirmação com "📍 *Farmácias perto de:* Vila Mariana, São Paulo/SP". |
+| 36 | (depois do 35) | `SIM` | — | Resultado + "📍 Quer ver as farmácias perto de *Vila Mariana, São Paulo/SP*? ✅ SIM". |
+| 37 | (depois do 36) | `SIM` | `tnl_farmacias_para_texto` | Farmácias da Vila Mariana, sem pedir o lugar de novo. |
+| 38 | concluido (farmácias mostradas) | `não, é Santa Luzia PB` | Santa Luzia/PB | Farmácias de Santa Luzia/PB, sem recomeçar. |
+| 39 | concluido (farmácias mostradas) | `Santa Luzia, Paraíba` (sem palavra de correção) | Claude: `assunto = local` | Farmácias de Santa Luzia/PB. |
+| 40 | concluido (farmácias mostradas) | `atenolol 25` | — | Lê o remédio novo normalmente ("Li isso aqui…"). |
+| 41 | aguardando_receita | `moro em Campinas` | Campinas/SP | "📍 Anotei: Campinas/SP. Agora é só mandar a receita". |
+| 42 | aguardando_cep | `moro na vila mariana em sp` (sem cidade) | `cidade_nao_achada` | Pede a cidade (não chuta Mariana/MG). |
+| 43 | qualquer | `obrigado` | — | "De nada! 😊" |
+
 ## Conferências extras no Supabase (Table Editor)
 
 - `conversa.contexto` **nunca** deve conter: nome escrito na receita, nome de paciente/médico, CPF, texto da pessoa.

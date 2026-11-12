@@ -73,6 +73,10 @@ function cepFalado(txt) {
   return nums.join('').split('');
 }
 
+// Frases de quem está corrigindo o lugar: "não, é Santa Luzia PB", "outra cidade", "moro no Jardim..."
+const RE_CORRIGE_LOCAL = /^(NAO|ERRADO|ERRADA)\b|\bNAO E (ESSA|ESSE|AQUI|ALI|LA)\b|\bOUTR[AO] (CIDADE|BAIRRO|LUGAR|ESTADO)\b|\bNA VERDADE\b|\bMORO\b|\bMORA\b|\bFICA (EM|NO|NA)\b|^E (EM|NO|NA) |\bCIDADE\b|\bBAIRRO\b|\bCEP\b/;
+const txt64 = (s) => Buffer.from((s || ' ').toString().slice(0, 200), 'utf8').toString('base64');
+
 function checarArquivo() {
   if (ent.tem_audio && !temImagem) return fixa({ resposta: MSG.AUDIO, evento: 'audio' });
   if (ent.outro_arquivo && !temImagem) return fixa({ resposta: MSG.IMAGEM_TIPO, evento: 'arquivo_invalido' });
@@ -108,6 +112,10 @@ if (['RECOMECAR', 'CANCELAR', 'MENU', 'SAIR'].includes(t)) {
   return fixa({ resposta: MSG.RECOMECAR, novo_estado: 'aguardando_receita', novo_contexto: {}, evento: 'recomecou' });
 }
 { const x = checarArquivo(); if (x) return x; }
+// Agradecimento: responde com carinho e não muda nada
+if (!temImagem && /^(MUITO )?(OBRIGAD[OA]|BRIGAD[OA]|VALEU|GRATO|GRATA|DEUS TE PAGUE|DEUS LHE PAGUE)\b/.test(t) && t.split(' ').length <= 6) {
+  return fixa({ resposta: MSG.DE_NADA, evento: 'agradeceu' });
+}
 
 // 4) Cada estado
 switch (d.estado_atual) {
@@ -119,7 +127,8 @@ switch (d.estado_atual) {
       return seguir('resultado');
     }
     if (ehNao) {
-      return fixa({ resposta: MSG.CONFIRMACAO_NAO, novo_estado: 'aguardando_receita', novo_contexto: {}, evento: 'confirmacao_nao' });
+      const local = d.contexto.local ? { local: d.contexto.local } : {}; // o lugar já dito continua valendo
+      return fixa({ resposta: MSG.CONFIRMACAO_NAO, novo_estado: 'aguardando_receita', novo_contexto: local, evento: 'confirmacao_nao' });
     }
     if (temImagem || (t && !ehSaudacao)) return seguir('extrair'); // correção: lê de novo
     return fixa({ resposta: MSG.CONFIRMAR_DE_NOVO });
@@ -130,16 +139,33 @@ switch (d.estado_atual) {
     const digitos = (cepFalado(t) || d.texto.match(/\d/g) || []).join('');
     if (!temImagem && digitos.length === 8) return seguir('cep', { cep: digitos });
     if (temImagem) return seguir('extrair'); // mandou outra receita
+    const local = d.contexto.local;
+    // A pessoa já tinha dito o lugar (junto com o remédio) e confirmou com SIM
+    if (ehSim && local) {
+      if (local.cep) return seguir('cep', { cep: local.cep });
+      return seguir('cidade', { local_b64: txt64([local.bairro, local.cidade, local.uf].filter(Boolean).join(' ')) });
+    }
+    if (ehNao && local) {
+      const { local: _, ...resto } = d.contexto;
+      return fixa({ resposta: MSG.PEDIR_CEP, novo_contexto: resto, evento: 'local_recusado' });
+    }
     if (ehNao) return fixa({ resposta: MSG.SEM_CEP, novo_estado: 'concluido', novo_contexto: {}, evento: 'sem_cep' });
     if (/[A-Z]{3,}/.test(t) && !ehSim) {
       // Texto com letras: tenta achar a cidade (e o bairro). O texto vai só para a consulta; não é salvo.
-      return seguir('cidade', { local_b64: Buffer.from(d.texto.slice(0, 200), 'utf8').toString('base64') });
+      return seguir('cidade', { local_b64: txt64(d.texto) });
     }
-    return fixa({ resposta: MSG.CEP_INVALIDO });
+    return fixa({ resposta: ehSim ? MSG.PEDIR_CEP : MSG.CEP_INVALIDO });
   }
 
   default: { // aguardando_receita ou concluido
     if (temImagem) return seguir('extrair');
+    // Depois de ver as farmácias, a pessoa pode corrigir o lugar sem recomeçar
+    if (d.contexto.farmacias_mostradas && t) {
+      const digitos = (cepFalado(t) || d.texto.match(/\d/g) || []).join('');
+      if (digitos.length === 8) return seguir('cep', { cep: digitos });
+      if (RE_CORRIGE_LOCAL.test(t) && !/\d+\s*(MG|MCG|ML|UI)\b/.test(t)) return seguir('cidade', { local_b64: txt64(d.texto) });
+      // Sem pista clara: o Claude decide se é um remédio novo ou um lugar
+    }
     if (!t || ehSaudacao || ehSim || ehNao) {
       return fixa({ resposta: d.aviso + MSG.PEDIR_RECEITA, novo_estado: 'aguardando_receita', novo_contexto: {} });
     }

@@ -3,7 +3,10 @@
 // Importante: a foto NÃO segue adiante e nada daqui é salvo como texto livre.
 const r = $input.first().json;
 const d = $('Decidir rota').first().json;
-const parar = (o) => [{ json: { consultar: false, lista_b64: b64([]), ...fim(d, o) } }];
+// O lugar (cidade/bairro/CEP) que a pessoa disse vai junto para o banco achar as farmácias.
+// Ele não é salvo como texto: só a cidade/bairro reconhecidos pela lista oficial.
+const txt64 = (s) => Buffer.from((s || ' ').toString().slice(0, 200), 'utf8').toString('base64');
+const parar = (o) => [{ json: { consultar: false, lista_b64: b64([]), local_b64: txt64(''), ...fim(d, o) } }];
 
 const res = lerRespostaClaude(r);
 if (!res.ok) return parar({ resposta: MSG.ERRO_TECNICO, evento: 'erro_claude', detalhe: { etapa: 'extracao', erro: res.erro } });
@@ -15,6 +18,11 @@ try { ext = JSON.parse(res.texto); } catch (e) {
 
 if (ext.assunto === 'pergunta_clinica') return parar({ resposta: MSG.FORA_CLINICO, evento: 'fora_clinico' });
 if (ext.assunto === 'pergunta_lista') return parar({ resposta: MSG.DICA_LISTA, evento: 'dica_lista' });
+// Só disse o lugar (ex.: corrigindo a cidade): o banco procura as farmácias e "Montar confirmação" responde
+const local = typeof ext.local === 'string' ? ext.local.trim() : '';
+if (ext.assunto === 'local' || (local && !(ext.medicamentos || []).length)) {
+  return [{ json: { consultar: false, so_local: true, lista_b64: b64([]), local_b64: txt64(local) } }];
+}
 if (ext.assunto === 'fora_do_escopo') return parar({ resposta: MSG.FORA_ESCOPO, evento: 'fora_escopo' });
 
 const meds = (ext.medicamentos || [])
@@ -32,4 +40,4 @@ if (!ext.legivel || meds.length === 0) {
 }
 
 const data_receita = /^\d{4}-\d{2}-\d{2}$/.test(ext.data_receita || '') ? ext.data_receita : null;
-return [{ json: { consultar: true, lista_b64: b64(meds), meds, data_receita } }];
+return [{ json: { consultar: true, lista_b64: b64(meds), meds, data_receita, local_b64: txt64(local) } }];

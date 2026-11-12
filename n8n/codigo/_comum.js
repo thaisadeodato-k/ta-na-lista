@@ -69,6 +69,8 @@ const MSG = {
     '👥 Outra pessoa pode retirar por você, levando uma *procuração*.',
   INSUMO: '🩲 _Pra fralda geriátrica e absorvente, confirme na farmácia o que levar, porque as regras podem ser diferentes._',
   CONFIRA_ESTOQUE: '📞 Vale *confirmar na farmácia* se o remédio tá em estoque.\n\nPrecisa ver outra receita? É só mandar. 😉',
+  DE_NADA: 'De nada! 😊\nPrecisando, é só mandar outra receita.',
+  CORRIGIR_LOCAL: '📍 _Não é esse lugar? Me manda a_ *cidade e o bairro* _certos, ou o_ *CEP*.',
   NOME_FACHADA: 'ℹ️ _O nome na fachada pode ser diferente: procure a placa_ *"Aqui tem Farmácia Popular"*.',
   SEM_FARMACIA_PERTO:
     '📍 Pela lista oficial, *não achei farmácia* do Farmácia Popular nessa cidade.\n\n' +
@@ -140,4 +142,69 @@ function modeloResultado(fatos) {
   });
   return blocos.join('\n\n'); // o próximo passo (pedir CEP/cidade) é colocado por "Conferir redação"
 }
+// A lista oficial vem em MAIÚSCULAS: cidade e bairro ficam "Vila Mariana", "São Paulo" (mais fácil de ler)
+const titulo = (s) => (!s || s !== s.toUpperCase()) ? s : s.toLowerCase()
+  .replace(/(^|[\s(\/-])([a-zà-ú])/g, (m, a, b) => a + b.toUpperCase())
+  .replace(/\s(De|Da|Do|Das|Dos|E|D)(?=\s)/g, (m) => m.toLowerCase());
+
+// O nome na lista oficial é a razão social: tira só os sufixos de empresa para ficar mais fácil de ler
+const nomeLegivel = (n) => (n || '')
+  .replace(/\s*[-–]?\s*\b(LTDA\.?|EIRELI|EPP|ME|S\/?A|S\.A\.?)\s*$/i, '')
+  .replace(/\s*[-–]?\s*\b(LTDA\.?|EIRELI|EPP|ME)\s*$/i, '')
+  .trim() || n;
+
+// Lugar reconhecido pelo banco (tnl_farmacias_para_texto), para mostrar e guardar.
+// Guarda só cidade/UF/bairro da lista oficial — nunca o texto que a pessoa escreveu.
+function localReconhecido(r) {
+  if (!r || !r.cidade || r.modo === 'cidade_nao_achada') return null;
+  const bairro = r.modo === 'bairro' && r.bairro_pedido ? titulo(String((r.farmacias || [])[0]?.bairro || '')) || null : null;
+  return { cidade: titulo(r.cidade), uf: r.uf || null, bairro };
+}
+const localTexto = (l) => [l.bairro, l.cidade && l.uf ? `${l.cidade}/${l.uf}` : l.cidade].filter(Boolean).join(', ');
+
+// Monta a resposta com até 3 farmácias + o que levar (usada pelo CEP, pela cidade e pela correção do lugar).
+//   r: resultado do banco ({modo, farmacias, total_na_cidade, cidade, uf, bairro_pedido, outras_ufs})
+//   porCidade: true quando veio do nome da cidade (não do CEP); cepFmt: "01310-100" quando veio do CEP
+function respostaFarmacias({ d, r, porCidade, municipio, uf, cepFmt }) {
+  const DISTANCIA_MAX_KM = 30;
+  municipio = titulo(municipio);
+  const cidadeUf = municipio ? `${municipio}${uf && uf !== '-' ? '/' + uf : ''}` : 'sua cidade';
+  const farmacias = (r.farmacias || []).filter((f) => f.distancia_km == null || Number(f.distancia_km) <= DISTANCIA_MAX_KM);
+  const extra = ((d.contexto || {}).tem_insumo ? '\n\n' + MSG.INSUMO : '');
+  if (!farmacias.length) {
+    return { resposta: `${MSG.SEM_FARMACIA_PERTO}\n\n${MSG.CORRIGIR_LOCAL}\n\n${MSG.O_QUE_LEVAR}${extra}`, encontradas: 0 };
+  }
+  const linhas = farmacias.map((f, i) => {
+    const dist = f.distancia_km != null ? ` _(cerca de ${String(f.distancia_km).replace('.', ',')} km)_` : '';
+    const local = [titulo(f.bairro), f.municipio && f.uf ? `${titulo(f.municipio)}/${f.uf}` : titulo(f.municipio)].filter(Boolean).join(', ');
+    return `🏥 *${i + 1}. ${nomeLegivel(f.nome)}*${dist}\n📍 ${f.endereco}\n      ${local}`;
+  });
+  const total = Number(r.total_na_cidade) || farmacias.length;
+  const qtd = `*${total} ${total === 1 ? 'farmácia' : 'farmácias'}* do Farmácia Popular`;
+  let intro;
+  if (r.modo === 'distancia') intro = `*Achei estas farmácias do Farmácia Popular perto do CEP ${cepFmt}:*`;
+  else if (r.modo === 'bairro') {
+    intro = porCidade
+      ? `*Achei estas farmácias do Farmácia Popular nesse bairro, em ${cidadeUf}:*`
+      : `*Achei estas farmácias do Farmácia Popular no seu bairro* (CEP ${cepFmt}):`;
+  } else if (porCidade && !r.bairro_pedido) {
+    intro = `*${cidadeUf}* tem ${qtd}. Algumas delas:`;
+  } else {
+    intro = `Não achei farmácia do programa nesse bairro, mas *${cidadeUf}* tem ${qtd}. Algumas delas:`;
+  }
+  // Cidade com o mesmo nome em outro estado (ex.: Santa Luzia MG/PB): ensina a escolher
+  const outras = porCidade ? (r.outras_ufs || []) : [];
+  const dicaLocal = outras.length
+    ? `💡 _Se não for essa, escreva a cidade com o estado. Ex.:_ *${municipio} ${outras[0]}*`
+    : MSG.CORRIGIR_LOCAL;
+  const dicaBairro = (porCidade && r.modo === 'municipio' && total > 3)
+    ? '\n\n💡 _Pra achar mais perto, me manda o seu_ *CEP* _ou o_ *bairro* _junto com a cidade._'
+    : '';
+  return {
+    resposta: `${intro}\n\n${linhas.join('\n\n')}\n\n${dicaLocal}${dicaBairro}\n\n${MSG.NOME_FACHADA}\n\n${MSG.O_QUE_LEVAR}${extra}\n\n${MSG.CONFIRA_ESTOQUE}`,
+    encontradas: farmacias.length,
+  };
+}
+// Depois de mostrar farmácias: a conversa fica "concluída", mas aceita corrigir o lugar sem recomeçar
+const contextoPosFarmacias = (d) => ({ farmacias_mostradas: true, tem_insumo: !!(d.contexto || {}).tem_insumo });
 // ===== fim dos trechos comuns =====

@@ -23,7 +23,7 @@ Como a foto de uma receita e o nome de um remédio podem revelar informações s
 | Foto ou PDF da receita, ou nome do remédio que você escreve | Identificar o medicamento | **Não.** A foto, o PDF e o texto são lidos e descartados. |
 | Medicamentos reconhecidos na lista oficial e a data da receita | Responder se o remédio é gratuito | Por no máximo **24 horas**, só como referência aos itens da lista oficial. Não guardamos o texto que você escreveu nem o nome do paciente ou do médico. |
 | Mensagem de voz (áudio) | Transformar a fala em texto, como se você tivesse escrito | **Não.** O áudio é transcrito e descartado. Só é transcrito depois que você respondeu SIM ao consentimento. |
-| CEP | Encontrar as farmácias mais próximas | **Não.** É usado só para calcular a localização. |
+| CEP, cidade ou bairro que você informar | Encontrar as farmácias mais próximas | **Só enquanto a conversa precisa.** Se você disser o lugar antes da hora (por exemplo, junto com o nome do remédio), guardamos o CEP ou a cidade e o bairro **reconhecidos na lista oficial** até mostrar as farmácias — no máximo **24 horas**. Não guardamos o texto que você escreveu nem o seu endereço. |
 | Estatísticas de uso | Saber se o projeto está ajudando (ex.: quantas consultas tiveram remédio na lista) | Sim, de forma **anônima**, sem ligação com nenhuma pessoa. |
 
 **Nunca pedimos** senha, dados de cartão, Pix, dados bancários ou documentos. Se alguém pedir isso em nome do Tá na Lista ou do Farmácia Popular, é golpe.

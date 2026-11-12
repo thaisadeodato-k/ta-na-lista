@@ -15,15 +15,24 @@ texto = texto.replace(/\*\*(.+?)\*\*/g, '*$1*').replace(/^#+\s*/gm, '').replace(
 const proibido = /(SENHA|CARTAO|PIX|DADOS BANCARIOS|CANAL OFICIAL|SOU DO GOVERNO)/.test(normCmd(texto));
 const usouClaude = !!texto && texto.length <= 1200 && !proibido;
 if (!usouClaude) texto = modeloResultado(fatos);
-// Próximo passo sempre igual e já formatado (não depende da IA)
-texto += '\n\n' + (pedirCep ? MSG.PEDIR_CEP : 'Precisa ver outra receita? É só mandar. 😉');
+// Próximo passo sempre igual e já formatado (não depende da IA).
+// Se a pessoa já disse o lugar (junto com o remédio), só pede um SIM.
+const local = (d.contexto || {}).local || null;
+let proximo = 'Precisa ver outra receita? É só mandar. 😉';
+if (pedirCep) {
+  proximo = local
+    ? `📍 Quer ver as farmácias perto de *${local.cep ? 'CEP ' + local.cep.replace(/(\d{5})(\d{3})/, '$1-$2') : localTexto(local)}*?\n\n` +
+      '✅ Responda *SIM*\n✍️ Ou mande outro *CEP* ou a *cidade e o bairro*'
+    : MSG.PEDIR_CEP;
+}
+texto += '\n\n' + proximo;
 
 const conta = (s) => fatos.itens.filter((i) => i.situacao === s).length;
 return [{
   json: fim(d, {
     resposta: texto,
     novo_estado: pedirCep ? 'aguardando_cep' : 'concluido',
-    novo_contexto: pedirCep ? { tem_insumo: prep.tem_insumo } : {},
+    novo_contexto: pedirCep ? { tem_insumo: prep.tem_insumo, ...(local ? { local } : {}) } : {},
     evento: 'resultado',
     detalhe: {
       na_lista: conta('na_lista'),

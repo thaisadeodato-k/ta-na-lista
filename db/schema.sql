@@ -452,22 +452,47 @@ declare
   v_outras jsonb;
   v_nome   text;
   r        jsonb;
+  v_so_bairro boolean;
 begin
   if trim(t) = '' then
     return jsonb_build_object('modo', 'cidade_nao_achada', 'farmacias', '[]'::jsonb);
   end if;
 
   -- 1) Cidade escrita por inteiro dentro do texto (a de nome mais longo ganha:
-  --    "sao jose dos campos" antes de "sao jose")
-  select c.m into v_mun
-  from (select distinct municipio_norm as m from farmacia where ativo) c
-  where t like '% ' || c.m || ' %'
-  order by length(c.m) desc
+  --    "sao jose dos campos" antes de "sao jose"). Se aparecerem duas cidades e uma delas
+  --    também é nome de estado ("Campinas São Paulo"), a com nome de estado é tratada como o estado.
+  with est(sigla, nome) as (values
+    ('AC','acre'),('AL','alagoas'),('AP','amapa'),('AM','amazonas'),('BA','bahia'),('CE','ceara'),
+    ('DF','distrito federal'),('ES','espirito santo'),('GO','goias'),('MA','maranhao'),('MT','mato grosso'),
+    ('MS','mato grosso do sul'),('MG','minas gerais'),('PA','para'),('PB','paraiba'),('PR','parana'),
+    ('PE','pernambuco'),('PI','piaui'),('RJ','rio de janeiro'),('RN','rio grande do norte'),
+    ('RS','rio grande do sul'),('RO','rondonia'),('RR','roraima'),('SC','santa catarina'),
+    ('SP','sao paulo'),('SE','sergipe'),('TO','tocantins')),
+  achadas as (
+    select distinct municipio_norm as m, uf from farmacia
+    where ativo and t like '% ' || municipio_norm || ' %'
+  )
+  select a.m into v_mun
+  from achadas a
+  -- nome de cidade logo depois de "vila", "jardim"... é bairro ("Vila Mariana" não é a cidade de Mariana),
+  -- e "jardim", "vila"... sozinhos também não contam como cidade
+  where not (t ~ ('(jardim|vila|parque|conjunto|residencial|jd|vl|alto|bairro|chacara|recanto|morada) ' || a.m || ' '))
+    and a.m not in ('jardim', 'vila', 'parque', 'alto', 'recanto', 'morada', 'conjunto', 'bairro')
+  order by
+    -- nome de estado só vale como cidade se não houver outra cidade daquele estado ("Campinas São Paulo")
+    (exists (select 1 from est e join achadas b on b.uf = e.sigla
+             where e.nome = a.m and b.m <> a.m and position(b.m in a.m) = 0 and position(a.m in b.m) = 0)) asc,
+    -- a pessoa escreveu a sigla ou o nome do estado desta cidade
+    (not exists (select 1 from est e where e.sigla = a.uf
+                 and (t like '% ' || lower(e.sigla) || ' %' or (t like '% ' || e.nome || ' %' and e.nome <> a.m)))) asc,
+    length(a.m) desc
   limit 1;
+  -- Só apareceu nome de bairro ("vila mariana em sp"): melhor pedir a cidade do que adivinhar
+  v_so_bairro := v_mun is null and exists (select 1 from farmacia where ativo and t like '% ' || municipio_norm || ' %');
 
   if v_mun is not null then
     v_resto := ' ' || trim(regexp_replace(t, ' ' || v_mun || ' ', ' ', '')) || ' ';
-  else
+  elsif not v_so_bairro then
     -- 2) Nome com erro de digitação/transcrição ("sao paolo", "campina")
     select c.m into v_mun
     from (select distinct municipio_norm as m from farmacia where ativo) c
@@ -514,8 +539,15 @@ begin
 
   -- 4) Bairro: o que sobrou do texto, sem o estado e sem palavras de ligação
   v_resto := regexp_replace(v_resto, ' ' || lower(v_uf) || ' ', ' ', 'g');
+  v_resto := replace(v_resto, ' ' || coalesce((select e.nome from (values
+    ('AC','acre'),('AL','alagoas'),('AP','amapa'),('AM','amazonas'),('BA','bahia'),('CE','ceara'),
+    ('DF','distrito federal'),('ES','espirito santo'),('GO','goias'),('MA','maranhao'),('MT','mato grosso'),
+    ('MS','mato grosso do sul'),('MG','minas gerais'),('PA','para'),('PB','paraiba'),('PR','parana'),
+    ('PE','pernambuco'),('PI','piaui'),('RJ','rio de janeiro'),('RN','rio grande do norte'),
+    ('RS','rio grande do sul'),('RO','rondonia'),('RR','roraima'),('SC','santa catarina'),
+    ('SP','sao paulo'),('SE','sergipe'),('TO','tocantins')) e(sigla, nome) where e.sigla = v_uf), '#') || ' ', ' ');
   v_resto := regexp_replace(v_resto,
-    '\m(eu|moro|mora|morando|fico|fica|estou|to|sou|em|no|na|nos|nas|perto|aqui|cidade|bairro|regiao|zona|cep|meu|minha|e|o|a|do|da|de|estado|municipio|centro da cidade)\M',
+    '\m(eu|moro|mora|morando|fico|fica|estou|to|sou|em|no|na|nos|nas|perto|aqui|cidade|bairro|regiao|zona|cep|meu|minha|e|o|a|do|da|de|estado|municipio|nao|errado|errada|essa|esse|isso|outra|outro|lugar|verdade|certa|certo|correta|correto|ali|la|onde|sim|retirar|pegar|farmacia|farmacias)\M',
     ' ', 'g');
   v_bairro := nullif(trim(regexp_replace(v_resto, '\s+', ' ', 'g')), '');
   if v_bairro is not null and length(v_bairro) < 3 then v_bairro := null; end if;
