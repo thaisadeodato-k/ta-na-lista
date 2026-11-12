@@ -162,34 +162,30 @@ O arquivo [`data/farmacias_exemplo.csv`](../data/farmacias_exemplo.csv) tem 5 fa
 
 ### F2.4 Credenciais no n8n
 1. **WhatsApp OAuth API** (para o gatilho): Client ID = **App ID**, Client Secret = **App Secret**. Nome: `WhatsApp Trigger (Tá na Lista)`.
-2. **Header Auth** (para baixar fotos e enviar respostas): Name = `Authorization`, Value = `Bearer SEU_TOKEN`. Nome: `WhatsApp token (Bearer)`.
+2. **Header Auth** (para baixar fotos e enviar respostas): Name = `Authorization`, Value = `Bearer SEU_TOKEN` (a palavra Bearer, um espaço e o token). Nome: `WhatsApp token (Bearer)`.
+   - Em **Allowed HTTP Request Domains**, escolha **Specific Domains** e coloque `graph.facebook.com, lookaside.fbsbx.com` (o token só pode ir para a Meta).
 
-### F2.5 Trocar a ENTRADA (no início do fluxo)
-1. Apague o nó **Chat de teste (Fase 1)**.
-2. Adicione um **WhatsApp Trigger** → credencial `WhatsApp Trigger (Tá na Lista)` → **Trigger On**: `Messages`.
-3. Depois dele, adicione um nó **Code** chamado **`WhatsApp: separar mensagem`** com o código de [`n8n/codigo/fase2_separar_whatsapp.js`](../n8n/codigo/fase2_separar_whatsapp.js).
-4. Adicione um nó **IF** "Tem mídia?" com a condição `{{ $json.media_id }}` **is not empty**.
-   - **true** → **HTTP Request** "Meta: pegar URL da mídia": GET `https://graph.facebook.com/v21.0/{{ $json.media_id }}`, credencial `WhatsApp token (Bearer)`.
-     → **HTTP Request** "Meta: baixar mídia": GET `{{ $json.url }}`, mesma credencial, em **Options → Response → Response Format: File**.
-     → nó **Entrada → formato padrão**.
-   - **false** → direto no nó **Entrada → formato padrão**.
-   - Use a versão da Graph API mostrada no painel da Meta, se for mais nova que `v21.0`.
-5. No nó **Entrada → formato padrão**, troque o código pelo de [`n8n/codigo/fase2_entrada_whatsapp.js`](../n8n/codigo/fase2_entrada_whatsapp.js). **Não mude o nome do nó**: o nó "Decidir rota" depende dele.
+### F2.5 Importar o fluxo do WhatsApp
+O fluxo já vem pronto em [`n8n/ta_na_lista_whatsapp.json`](../n8n/ta_na_lista_whatsapp.json). É um fluxo **separado** do chat de teste: o "meio" é idêntico, só a entrada e a saída mudam.
+1. No n8n: **Create Workflow** → **…** → **Import** → **From URL** →
+   `https://raw.githubusercontent.com/thaisadeodato-k/ta-na-lista/main/n8n/ta_na_lista_whatsapp.json`
+   (ou **From file**, escolhendo o arquivo no computador).
+2. Abra os nós com alerta de credencial e selecione:
+   - **WhatsApp Trigger** → `WhatsApp Trigger (Tá na Lista)`
+   - **Meta: pegar URL da mídia**, **Meta: baixar mídia**, **Saída → WhatsApp** → `WhatsApp token (Bearer)`
+   - nós do Postgres e do Claude → as mesmas credenciais da Fase 1.
+3. Não precisa digitar o Phone number ID: o fluxo responde pelo mesmo número que recebeu a mensagem.
 
-### F2.6 Trocar a SAÍDA (no fim do fluxo)
-1. Apague o nó **Saída → chat (Fase 1)**.
-2. No lugar, adicione um **HTTP Request** chamado `Saída → WhatsApp`:
-   - Method: **POST**
-   - URL: `https://graph.facebook.com/v21.0/SEU_PHONE_NUMBER_ID/messages`
-   - Credencial: `WhatsApp token (Bearer)`
-   - Body (JSON):
-     ```
-     {{ JSON.stringify({ messaging_product: 'whatsapp', to: $('Entrada → formato padrão').first().json.para, type: 'text', text: { body: $('Juntar resposta').first().json.resposta } }) }}
-     ```
-   - O telefone (`para`) só existe na memória da execução: no banco ele é sempre hash.
+O que o fluxo faz na entrada:
+- **WhatsApp: separar mensagem** pega quem mandou, o texto e o ID da foto. Avisos de "entregue/lido" são ignorados.
+- **Tem mídia?** → se for foto, **Meta: pegar URL da mídia** e **Meta: baixar mídia** trazem a imagem (só na memória da execução).
+- **Entrada → formato padrão** monta o formato padrão. Celulares do Brasil que chegam sem o 9 recebem o 9 de volta, para a resposta não ser recusada.
+
+### F2.6 Saída
+O nó **Saída → WhatsApp** envia a resposta pela Graph API (`/messages`). O telefone só existe na memória da execução; no banco ele é sempre hash.
 
 ### F2.7 Webhook e ativação
-1. Salve o fluxo e ligue a chave **Active** (canto de cima). O WhatsApp Trigger registra o webhook na Meta automaticamente.
+1. Salve o fluxo e clique em **Publish** (canto de cima). O WhatsApp Trigger registra o webhook na Meta automaticamente.
 2. No painel da Meta → **WhatsApp** → **Configuration** (Configuração) → **Webhook**: confira se o campo **messages** está assinado (**Subscribe**).
 3. Mande `oi` do seu celular para o número de teste. O Zé deve responder com o consentimento.
 
