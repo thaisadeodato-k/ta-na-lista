@@ -8,12 +8,15 @@ const pedirCep = fatos.proximo_passo === 'pedir_cep';
 
 const res = lerRespostaClaude(r);
 let texto = res.ok ? res.texto.replace(/^["']+|["']+$/g, '').trim() : '';
+// Ajusta formatação para o WhatsApp: **negrito** (markdown) -> *negrito*; tira títulos com #
+texto = texto.replace(/\*\*(.+?)\*\*/g, '*$1*').replace(/^#+\s*/gm, '').replace(/\n{3,}/g, '\n\n');
 
 // Travas: tamanho e palavras proibidas
 const proibido = /(SENHA|CARTAO|PIX|DADOS BANCARIOS|CANAL OFICIAL|SOU DO GOVERNO)/.test(normCmd(texto));
-const usouClaude = !!texto && texto.length <= 900 && !proibido;
+const usouClaude = !!texto && texto.length <= 1200 && !proibido;
 if (!usouClaude) texto = modeloResultado(fatos);
-if (pedirCep && !/CEP/i.test(texto)) texto += '\n' + MSG.PEDIR_CEP;
+// Próximo passo sempre igual e já formatado (não depende da IA)
+texto += '\n\n' + (pedirCep ? MSG.PEDIR_CEP : 'Precisa ver outra receita? É só mandar. 😉');
 
 const conta = (s) => fatos.itens.filter((i) => i.situacao === s).length;
 return [{

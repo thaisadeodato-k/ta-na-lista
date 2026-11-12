@@ -4,6 +4,7 @@
 //   rota = 'extrair'   -> ler receita/texto com o Claude
 //   rota = 'resultado' -> pessoa confirmou: dizer se está na lista
 //   rota = 'cep'       -> procurar farmácias pelo CEP
+//   rota = 'cidade'    -> procurar farmácias pelo nome da cidade (e bairro)
 //   rota = 'lista'     -> mostrar os remédios da lista oficial (tudo ou de uma doença)
 const ent = $('Entrada → formato padrão').first().json;
 const conv = $input.first().json.r;
@@ -60,6 +61,18 @@ const FILTROS_LISTA = [
 ];
 const filtroLista = () => (FILTROS_LISTA.find(([re]) => re.test(t)) || [null, '-'])[1];
 
+// CEP falado em palavras (áudio transcrito): "zero um três um zero um zero zero" -> 01310100.
+// Só vale quando a mensagem é quase toda de números, para não confundir "um" de nomes de cidade.
+const NUM_FALADO = { ZERO: '0', UM: '1', UMA: '1', DOIS: '2', DUAS: '2', TRES: '3', QUATRO: '4', CINCO: '5',
+  SEIS: '6', MEIA: '6', SETE: '7', OITO: '8', NOVE: '9' };
+function cepFalado(txt) {
+  const pal = txt.split(' ').filter((p) => p && !['CEP', 'MEU', 'E', 'O', 'TRACO', 'HIFEN', 'PONTO'].includes(p));
+  if (!pal.length) return null;
+  const nums = pal.map((p) => (NUM_FALADO[p] !== undefined ? NUM_FALADO[p] : (/^\d+$/.test(p) ? p : null)));
+  if (nums.some((x) => x === null)) return null;
+  return nums.join('').split('');
+}
+
 function checarArquivo() {
   if (ent.tem_audio && !temImagem) return fixa({ resposta: MSG.AUDIO, evento: 'audio' });
   if (ent.outro_arquivo && !temImagem) return fixa({ resposta: MSG.IMAGEM_TIPO, evento: 'arquivo_invalido' });
@@ -113,10 +126,15 @@ switch (d.estado_atual) {
   }
 
   case 'aguardando_cep': {
-    const digitos = (d.texto.match(/\d/g) || []).join('');
+    // Aceita CEP (digitado ou falado: "zero um três...") OU o nome da cidade/bairro
+    const digitos = (cepFalado(t) || d.texto.match(/\d/g) || []).join('');
     if (!temImagem && digitos.length === 8) return seguir('cep', { cep: digitos });
     if (temImagem) return seguir('extrair'); // mandou outra receita
     if (ehNao) return fixa({ resposta: MSG.SEM_CEP, novo_estado: 'concluido', novo_contexto: {}, evento: 'sem_cep' });
+    if (/[A-Z]{3,}/.test(t) && !ehSim) {
+      // Texto com letras: tenta achar a cidade (e o bairro). O texto vai só para a consulta; não é salvo.
+      return seguir('cidade', { local_b64: Buffer.from(d.texto.slice(0, 200), 'utf8').toString('base64') });
+    }
     return fixa({ resposta: MSG.CEP_INVALIDO });
   }
 

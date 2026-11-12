@@ -32,22 +32,28 @@ if (!grupos.length) {
   return [{ json: fim(d, { resposta: MSG.LISTA_VAZIA, evento: 'pergunta_lista', detalhe: { filtro: d.filtro_lista } }) }];
 }
 
+const EMOJI = {
+  'HIPERTENSAO': '❤️', 'DIABETES': '🩸', 'DIABETES MELLITUS DOENCA CARDIOVASCULAR': '💗', 'DISLIPIDEMIA': '🧪',
+  'ASMA': '🫁', 'RINITE': '👃', 'DOENCA DE PARKINSON': '🧠', 'GLAUCOMA': '👁️', 'OSTEOPOROSE': '🦴',
+  'ANTICONCEPCAO': '💊', 'INCONTINENCIA URINARIA': '🩲', 'DIGNIDADE MENSTRUAL': '🌸',
+};
 const blocos = grupos.map((g) => {
   const itens = (g.itens || []).map((i) => {
     const cs = [...new Set((i.concentracoes || []).map(conc))];
-    return cs.length ? `${i.nome} (${cs.join(', ')})` : i.nome;
+    return `• ${i.nome}${cs.length ? ` _(${cs.join(', ')})_` : ''}`;
   });
-  return `*${rotulo(g.indicacao)}*: ${itens.join('; ')}.`;
+  return `${EMOJI[normCmd(g.indicacao)] || '💊'} *${rotulo(g.indicacao)}*\n${itens.join('\n')}`;
 });
 
 const todos = d.filtro_lista === '-';
 const resposta =
   (todos
-    ? 'Estes são os itens que saem de graça no Farmácia Popular (lista oficial do Ministério da Saúde):\n\n'
-    : 'Da lista oficial do Farmácia Popular, estes saem de graça:\n\n') +
-  blocos.join('\n') +
-  '\n\nQuem indica o remédio é o médico. ' +
-  (todos ? 'Pra ver só de uma doença, escreva por exemplo: LISTA DIABETES. ' : '') +
-  'Manda a foto da receita que eu confiro se o seu está na lista.';
+    ? '💊 *Remédios e itens DE GRAÇA no Farmácia Popular*\n_Lista oficial do Ministério da Saúde_\n\n'
+    : '💊 *Da lista oficial do Farmácia Popular, estes saem DE GRAÇA:*\n\n') +
+  blocos.join('\n\n') +
+  '\n\n━━━━━━━━━━\n' +
+  '👨‍⚕️ _Quem indica o remédio é o médico._\n\n' +
+  (todos ? '🔎 Pra ver só de uma doença, escreva por exemplo: *LISTA DIABETES*\n' : '') +
+  '📸 Manda a foto da receita que eu confiro se o seu tá na lista.';
 
 return [{ json: fim(d, { resposta, evento: 'pergunta_lista', detalhe: { filtro: d.filtro_lista } }) }];

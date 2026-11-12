@@ -75,6 +75,16 @@
 | 28 | aguardando_receita | `Glifage XR 500` | metformina, `marca_reconhecida` = Glifage XR | Confirmação: "Glifage XR 500 mg (é nome de marca; o genérico é cloridrato de metformina)". Depois do SIM, explica marca × genérico sem sugerir troca. |
 | 29 | qualquer | `posso trocar o Atrovent pelo genérico?` | (não consulta) | "Essa eu não posso responder: dose, efeito, troca…" |
 
+## Farmácias por CEP ou cidade
+
+| # | Estado inicial | Mensagem da pessoa | Decisão do banco | Resposta esperada do Zé |
+|---|---|---|---|---|
+| 30 | aguardando_cep | `01310-100` (ou áudio "zero um três um zero um zero zero") | `tnl_farmacias_para_cep` | Farmácias do bairro do CEP (Bela Vista, São Paulo/SP). |
+| 31 | aguardando_cep | `Vila Mariana, São Paulo` | `tnl_farmacias_para_texto` → modo `bairro` | "Achei estas farmácias… nesse bairro, em São Paulo/SP". |
+| 32 | aguardando_cep | `Santa Luzia` | modo `municipio`, `outras_ufs` | Farmácias de Santa Luzia/MG + dica "escreva a cidade com o estado. Ex.: Santa Luzia BA". |
+| 33 | aguardando_cep | `sao paolo` (com erro) | reconhece São Paulo | Farmácias de São Paulo/SP + dica para mandar CEP ou bairro. |
+| 34 | aguardando_cep | `xyzabc` | `cidade_nao_achada` | "Não achei essa cidade… manda o CEP". O estado continua aguardando_cep. |
+
 ## Conferências extras no Supabase (Table Editor)
 
 - `conversa.contexto` **nunca** deve conter: nome escrito na receita, nome de paciente/médico, CPF, texto da pessoa.
