@@ -72,7 +72,7 @@ docs/      passo a passo de configuração (Fase 1 e Fase 2)
   <https://www.gov.br/saude/pt-br/composicao/sectics/farmacia-popular/arquivos/elenco-de-medicamentos-e-insumos-pfpb.pdf>
   - O PDF traz princípio ativo, concentração e indicação. **A coluna `forma` não está no PDF**: foi preenchida com a apresentação usual e precisa ser **conferida por farmacêutico**.
 - **Marcas comerciais** (`marca_principio.csv`): lista inicial, **a revisar por farmacêutico**.
-- **Farmácias** (`farmacias_pfpb.csv`): lista oficial "Farmácias participantes do PFPB", Ministério da Saúde (lista de 02/10/2026, 27.538 farmácias). Para atualizar: `node scripts/importar_farmacias.mjs planilha.xlsx` (ver [docs/configuracao.md](docs/configuracao.md#parte-4--farmácias-do-programa-lista-oficial)).
+- **Farmácias** (`farmacias_pfpb.csv`): lista oficial "Farmácias participantes do PFPB", Ministério da Saúde (lista de 02/10/2026, 27.538 farmácias). O banco é **atualizado sozinho a cada 15 dias** pelo fluxo `n8n/ta_na_lista_atualizar_farmacias.json` (com conferências de segurança e e-mail de aviso se falhar); o CSV do repositório é só uma foto da lista de 02/10/2026. Para atualizar à mão: `node scripts/importar_farmacias.mjs planilha.xlsx` (ver [docs/configuracao.md](docs/configuracao.md#parte-4--farmácias-do-programa-lista-oficial)).
 
 Quando o Ministério atualizar a lista, atualize `data/elenco_pfp.csv`, rode `node scripts/gerar_seed.mjs` e cole o novo `db/seed.sql` no Supabase.
 

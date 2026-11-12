@@ -124,7 +124,9 @@ As chamadas ao Claude usam `fallbacks: "default"`. Se o modelo principal recusar
 
 As farmácias vêm da planilha oficial **"Farmácias participantes do PFPB"**, do Ministério da Saúde (todo o Brasil, ~27,5 mil farmácias). A cópia usada está em [`data/farmacias_pfpb.csv`](../data/farmacias_pfpb.csv).
 
-Para atualizar quando o Ministério publicar uma nova versão:
+**Atualização automática (a cada 15 dias):** o fluxo [`n8n/ta_na_lista_atualizar_farmacias.json`](../n8n/ta_na_lista_atualizar_farmacias.json) baixa a planilha oficial, confere se ela veio certa (colunas esperadas, pelo menos 20 mil farmácias, CNPJ e UF no formato certo), grava em lotes, desativa quem saiu da lista (só se todas as farmácias novas foram gravadas) e padroniza a busca. Se algo der errado, **não mexe no banco** e manda um e-mail de aviso pelo Gmail. Para instalar: importe o fluxo, escolha a credencial do Supabase nos nós do Postgres, conecte uma conta Google no nó **Avisar por e-mail**, coloque o e-mail de aviso no campo **To** e clique em **Publish**.
+
+Para atualizar à mão (por exemplo, se o e-mail de aviso chegar):
 1. Baixe a planilha (.xlsx) em <https://www.gov.br/saude/pt-br/composicao/sectics/farmacia-popular/publicacoes/farmacias-participante-do-programa-farmacia-popular/view>.
 2. Rode `node scripts/importar_farmacias.mjs "caminho/da/planilha.xlsx"`. Ele gera o CSV e os arquivos `db/farmacias_pfpb_1.sql`, `_2.sql`… (em partes, porque o SQL Editor não aceita um arquivo gigante).
 3. Leve para o Supabase de um destes jeitos:

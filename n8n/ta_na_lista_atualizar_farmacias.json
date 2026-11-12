@@ -1,0 +1,370 @@
+{
+  "name": "Tá na Lista — Atualizar farmácias (a cada 15 dias)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🔄 ATUALIZAR FARMÁCIAS\nA cada 15 dias baixa a lista oficial \"Farmácias participantes do PFPB\" (Ministério da Saúde), confere se veio certinha e atualiza o banco.\n\nSe algo der errado (link mudou, formato mudou, lista pela metade, erro no banco), **não mexe no banco** e manda um e-mail de aviso.",
+        "width": 1700,
+        "height": 280,
+        "color": 4
+      },
+      "id": "00000000-0000-4000-8000-000000000077",
+      "name": "Nota 77",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 15,
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "id": "00000000-0000-4000-8000-000000000078",
+      "name": "A cada 15 dias",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.gov.br/saude/pt-br/composicao/sectics/farmacia-popular/publicacoes/farmacias-participante-do-programa-farmacia-popular/@@download/file",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "00000000-0000-4000-8000-000000000079",
+      "name": "Baixar lista oficial",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        300
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "data",
+        "options": {
+          "includeEmptyCells": true
+        }
+      },
+      "id": "00000000-0000-4000-8000-000000000080",
+      "name": "Ler planilha",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ATUALIZAR FARMÁCIAS — nó \"Validar planilha\".\n// Recebe as linhas da planilha oficial \"Farmácias participantes do PFPB\" (Ministério da Saúde)\n// e confere se ela está do jeito esperado ANTES de mexer no banco. Se algo estiver estranho\n// (o Ministério mudou o link, o formato ou a lista veio pela metade), devolve ok=false e\n// o fluxo só manda o e-mail de aviso: o banco continua com a lista anterior.\nconst MINIMO_FARMACIAS = 20000;   // a lista de 02/10/2026 tinha 27.538\nconst POR_LOTE = 3000;            // farmácias por gravação no banco\n\nconst linhas = $input.all().map((i) => i.json || {});\nconst norm = (v) => String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();\nconst erro = (motivo) => [{ json: { ok: false, motivo, linhas_lidas: linhas.length } }];\n\nif (!linhas.length) return erro('A planilha veio vazia (o link pode ter mudado ou o download falhou).');\n\n// 1) Acha o cabeçalho (CNPJ | Razão Social | Endereço | Bairro | Município | UF).\n//    Pode estar nos nomes das colunas ou numa das primeiras linhas (a planilha tem um título em cima).\nfunction mapaDe(pares) {\n  const m = {};\n  for (const [chave, valor] of pares) {\n    const n = norm(valor);\n    if (n === 'CNPJ') m.cnpj = chave;\n    else if (n.startsWith('RAZAO')) m.nome = chave;\n    else if (n.startsWith('ENDERECO')) m.endereco = chave;\n    else if (n.startsWith('BAIRRO')) m.bairro = chave;\n    else if (n.startsWith('MUNICIPIO')) m.municipio = chave;\n    else if (n === 'UF') m.uf = chave;\n  }\n  return m;\n}\nconst completo = (m) => m.cnpj && m.nome && m.endereco && m.municipio && m.uf;\n\nlet mapa = mapaDe(Object.keys(linhas[0]).map((k) => [k, k]));\nlet inicio = 0;\nif (!completo(mapa)) {\n  mapa = null;\n  for (let i = 0; i < Math.min(linhas.length, 30); i++) {\n    const m = mapaDe(Object.entries(linhas[i]));\n    if (completo(m)) { mapa = m; inicio = i + 1; break; }\n  }\n}\nif (!mapa) return erro('Não achei as colunas esperadas (CNPJ, Razão Social, Endereço, Bairro, Município, UF). O Ministério pode ter mudado o formato da planilha.');\n\n// 2) Data da lista (\"Data : 02/10/2026\"), procurada nas primeiras linhas e nos nomes das colunas\nlet dataLista = null;\nconst textosTopo = [...Object.keys(linhas[0]), ...linhas.slice(0, inicio || 5).flatMap((l) => Object.values(l))];\nfor (const t of textosTopo) {\n  const m = String(t ?? '').match(/(\\d{2})\\/(\\d{2})\\/(\\d{4})/);\n  if (m) { dataLista = `${m[3]}-${m[2]}-${m[1]}`; break; }\n}\nif (!dataLista) dataLista = new Date().toISOString().slice(0, 10);\n\n// 3) Lê as farmácias\nconst limpa = (s) => String(s ?? '').replace(/\\s+/g, ' ').trim();\nconst vistos = new Set();\nconst farmacias = [];\nlet cnpjInvalido = 0;\nfor (const l of linhas.slice(inicio)) {\n  const cnpj = limpa(l[mapa.cnpj]);\n  if (!cnpj) continue;\n  if (!/^\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}$/.test(cnpj)) { cnpjInvalido++; continue; }\n  if (vistos.has(cnpj)) continue;\n  vistos.add(cnpj);\n  farmacias.push({\n    cnpj, nome: limpa(l[mapa.nome]), endereco: limpa(l[mapa.endereco]),\n    bairro: mapa.bairro ? limpa(l[mapa.bairro]) : '', municipio: limpa(l[mapa.municipio]), uf: limpa(l[mapa.uf]).toUpperCase(),\n  });\n}\n\n// 4) Conferências de segurança\nif (farmacias.length < MINIMO_FARMACIAS) {\n  return erro(`A lista veio com só ${farmacias.length} farmácias (o mínimo esperado é ${MINIMO_FARMACIAS}). Pode estar incompleta: não atualizei o banco.`);\n}\nif (cnpjInvalido > farmacias.length * 0.05) {\n  return erro(`${cnpjInvalido} linhas com CNPJ em formato estranho. O formato da planilha pode ter mudado: não atualizei o banco.`);\n}\nconst semCidade = farmacias.filter((f) => !f.municipio || !/^[A-Z]{2}$/.test(f.uf)).length;\nif (semCidade > farmacias.length * 0.02) {\n  return erro(`${semCidade} farmácias sem cidade ou UF válida. O formato da planilha pode ter mudado: não atualizei o banco.`);\n}\n\n// 5) Divide em lotes para gravar (cada lote vai em base64, sem problema com vírgulas e aspas)\nconst lotes = [];\nfor (let i = 0; i < farmacias.length; i += POR_LOTE) {\n  const lote = farmacias.slice(i, i + POR_LOTE);\n  lotes.push({ json: {\n    ok: true, lista_de: dataLista, total: farmacias.length, lote: lotes.length + 1,\n    lote_b64: Buffer.from(JSON.stringify(lote), 'utf8').toString('base64'),\n  } });\n}\nreturn lotes;\n"
+      },
+      "id": "00000000-0000-4000-8000-000000000081",
+      "name": "Validar planilha",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "00000000-0000-4000-8000-000000000082",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "00000000-0000-4000-8000-000000000083",
+      "name": "Planilha ok?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into public.farmacia (cnpj, nome, endereco, bairro, municipio, uf, ativo, lista_de) select x.cnpj, x.nome, x.endereco, nullif(x.bairro, ''), x.municipio, x.uf, true, $2::date from jsonb_to_recordset(convert_from(decode($1, 'base64'), 'UTF8')::jsonb) as x(cnpj text, nome text, endereco text, bairro text, municipio text, uf text) on conflict (cnpj) do update set nome = excluded.nome, endereco = excluded.endereco, bairro = excluded.bairro, municipio = excluded.municipio, uf = excluded.uf, ativo = true, lista_de = excluded.lista_de;",
+        "options": {
+          "queryReplacement": "={{ $json.lote_b64 }},{{ $json.lista_de }}"
+        }
+      },
+      "id": "00000000-0000-4000-8000-000000000084",
+      "name": "Gravar farmácias",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "preencher-supabase",
+          "name": "Supabase Postgres (Tá na Lista)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "with ok as (select (select count(*) from public.farmacia where lista_de = $1::date) >= $2::int as tudo_gravado), d as (update public.farmacia set ativo = false where ativo and lista_de is distinct from $1::date and (select tudo_gravado from ok) returning 1) select count(*) as desativadas, cast(nullif((select case when tudo_gravado then '' else 'Nem todas as farmácias da lista nova foram gravadas; não desativei nenhuma' end from ok), '') as int) as trava from d;",
+        "options": {
+          "queryReplacement": "={{ $('Validar planilha').first().json.lista_de }},{{ $('Validar planilha').first().json.total }}"
+        }
+      },
+      "id": "00000000-0000-4000-8000-000000000085",
+      "name": "Desativar quem saiu",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1320,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "preencher-supabase",
+          "name": "Supabase Postgres (Tá na Lista)"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select public.tnl_farmacias_normalizar() as padronizadas, (select count(*) from public.farmacia where ativo) as ativas;",
+        "options": {
+          "queryReplacement": ""
+        }
+      },
+      "id": "00000000-0000-4000-8000-000000000086",
+      "name": "Padronizar busca",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1540,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "preencher-supabase",
+          "name": "Supabase Postgres (Tá na Lista)"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "PREENCHER_EMAIL",
+        "subject": "⚠️ Tá na Lista: a atualização das farmácias não rodou",
+        "emailType": "text",
+        "options": {
+          "appendAttribution": false
+        },
+        "message": "=A atualização automática da lista de farmácias do Farmácia Popular não foi feita.\n\nMotivo: {{ $json.motivo || ($json.error && ($json.error.message || $json.error)) || 'erro inesperado (veja a aba Executions do fluxo no n8n)' }}\n\nO banco continua com a lista anterior, então o Zé segue funcionando.\n\nO que fazer: abra a página da lista no site do Ministério da Saúde e confira se o arquivo mudou de lugar ou de formato:\nhttps://www.gov.br/saude/pt-br/composicao/sectics/farmacia-popular/publicacoes/farmacias-participante-do-programa-farmacia-popular/view\n\nPasso a passo para atualizar à mão: docs/configuracao.md, Parte 4."
+      },
+      "id": "00000000-0000-4000-8000-000000000087",
+      "name": "Avisar por e-mail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        520
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "preencher-gmail",
+          "name": "Gmail (avisos Tá na Lista)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "A cada 15 dias": {
+      "main": [
+        [
+          {
+            "node": "Baixar lista oficial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar lista oficial": {
+      "main": [
+        [
+          {
+            "node": "Ler planilha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Avisar por e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler planilha": {
+      "main": [
+        [
+          {
+            "node": "Validar planilha",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Avisar por e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar planilha": {
+      "main": [
+        [
+          {
+            "node": "Planilha ok?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Planilha ok?": {
+      "main": [
+        [
+          {
+            "node": "Gravar farmácias",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Avisar por e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gravar farmácias": {
+      "main": [
+        [
+          {
+            "node": "Desativar quem saiu",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Avisar por e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Desativar quem saiu": {
+      "main": [
+        [
+          {
+            "node": "Padronizar busca",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Avisar por e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Padronizar busca": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Avisar por e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

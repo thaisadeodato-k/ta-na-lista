@@ -327,5 +327,97 @@ function salvar(arquivo, { name, nodes, connections, settings = {} }) {
   console.log(`OK: n8n/${arquivo} gerado (${nodes.length} nós).`);
 }
 
+// ---------- ATUALIZAR FARMÁCIAS (a cada 15 dias) ----------
+// Baixa a planilha oficial do Ministério, confere, grava no banco e avisa por e-mail se algo der errado.
+const URL_LISTA_FARMACIAS =
+  'https://www.gov.br/saude/pt-br/composicao/sectics/farmacia-popular/publicacoes/farmacias-participante-do-programa-farmacia-popular/@@download/file';
+function atualizarFarmacias() {
+  const AVISO = 'Avisar por e-mail';
+  const nodes = [
+    nota('## 🔄 ATUALIZAR FARMÁCIAS\nA cada 15 dias baixa a lista oficial "Farmácias participantes do PFPB" (Ministério da Saúde), confere se veio certinha e atualiza o banco.\n\nSe algo der errado (link mudou, formato mudou, lista pela metade, erro no banco), **não mexe no banco** e manda um e-mail de aviso.', [-60, -120], 1700, 280, 4),
+    {
+      parameters: { rule: { interval: [{ field: 'days', daysInterval: 15, triggerAtHour: 6 }] } },
+      id: id(), name: 'A cada 15 dias', type: 'n8n-nodes-base.scheduleTrigger', typeVersion: 1.2, position: [0, 300],
+    },
+    {
+      parameters: {
+        url: URL_LISTA_FARMACIAS,
+        options: { timeout: 120000, response: { response: { responseFormat: 'file', outputPropertyName: 'data' } } },
+      },
+      id: id(), name: 'Baixar lista oficial', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [220, 300],
+      onError: 'continueErrorOutput',
+    },
+    {
+      parameters: { operation: 'xlsx', binaryPropertyName: 'data', options: { includeEmptyCells: true } },
+      id: id(), name: 'Ler planilha', type: 'n8n-nodes-base.extractFromFile', typeVersion: 1, position: [440, 300],
+      onError: 'continueErrorOutput',
+    },
+    code('Validar planilha', '20_validar_farmacias.js', [660, 300]),
+    {
+      parameters: {
+        conditions: {
+          options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 },
+          conditions: [{ id: id(), leftValue: '={{ $json.ok }}', rightValue: '', operator: { type: 'boolean', operation: 'true', singleValue: true } }],
+          combinator: 'and',
+        },
+        options: {},
+      },
+      id: id(), name: 'Planilha ok?', type: 'n8n-nodes-base.if', typeVersion: 2.2, position: [880, 300],
+    },
+    pg('Gravar farmácias',
+      "insert into public.farmacia (cnpj, nome, endereco, bairro, municipio, uf, ativo, lista_de) " +
+      "select x.cnpj, x.nome, x.endereco, nullif(x.bairro, ''), x.municipio, x.uf, true, $2::date " +
+      "from jsonb_to_recordset(convert_from(decode($1, 'base64'), 'UTF8')::jsonb) " +
+      "as x(cnpj text, nome text, endereco text, bairro text, municipio text, uf text) " +
+      "on conflict (cnpj) do update set nome = excluded.nome, endereco = excluded.endereco, bairro = excluded.bairro, " +
+      "municipio = excluded.municipio, uf = excluded.uf, ativo = true, lista_de = excluded.lista_de;",
+      '={{ $json.lote_b64 }},{{ $json.lista_de }}', [1100, 200], { onError: 'continueErrorOutput' }),
+    pg('Desativar quem saiu',
+      // Trava: só desativa se TODAS as farmácias da lista nova foram gravadas (nenhum lote falhou)
+      "with ok as (select (select count(*) from public.farmacia where lista_de = $1::date) >= $2::int as tudo_gravado), " +
+      "d as (update public.farmacia set ativo = false where ativo and lista_de is distinct from $1::date " +
+      "and (select tudo_gravado from ok) returning 1) " +
+      // se a trava segurar, gera um erro com mensagem clara (vai para o e-mail de aviso)
+      // (a mensagem fica dentro de uma subconsulta para o Postgres não "calcular o erro" antes da hora)
+      "select count(*) as desativadas, cast(nullif((select case when tudo_gravado then '' " +
+      "else 'Nem todas as farmácias da lista nova foram gravadas; não desativei nenhuma' end from ok), '') as int) as trava from d;",
+      "={{ $('Validar planilha').first().json.lista_de }},{{ $('Validar planilha').first().json.total }}", [1320, 200], { onError: 'continueErrorOutput', executeOnce: true }),
+    pg('Padronizar busca',
+      "select public.tnl_farmacias_normalizar() as padronizadas, (select count(*) from public.farmacia where ativo) as ativas;",
+      '', [1540, 200], { onError: 'continueErrorOutput', executeOnce: true }),
+    {
+      parameters: {
+        resource: 'message', operation: 'send',
+        sendTo: 'PREENCHER_EMAIL', // o e-mail de aviso é preenchido só no n8n (não vai para o GitHub)
+        subject: '⚠️ Tá na Lista: a atualização das farmácias não rodou',
+        emailType: 'text',
+        options: { appendAttribution: false },
+        message: "=A atualização automática da lista de farmácias do Farmácia Popular não foi feita.\n\n" +
+          "Motivo: {{ $json.motivo || ($json.error && ($json.error.message || $json.error)) || 'erro inesperado (veja a aba Executions do fluxo no n8n)' }}\n\n" +
+          "O banco continua com a lista anterior, então o Zé segue funcionando.\n\n" +
+          "O que fazer: abra a página da lista no site do Ministério da Saúde e confira se o arquivo mudou de lugar ou de formato:\n" +
+          "https://www.gov.br/saude/pt-br/composicao/sectics/farmacia-popular/publicacoes/farmacias-participante-do-programa-farmacia-popular/view\n\n" +
+          "Passo a passo para atualizar à mão: docs/configuracao.md, Parte 4.",
+      },
+      id: id(), name: AVISO, type: 'n8n-nodes-base.gmail', typeVersion: 2.1, position: [1100, 520],
+      executeOnce: true,
+      credentials: { gmailOAuth2: { id: 'preencher-gmail', name: 'Gmail (avisos Tá na Lista)' } },
+    },
+  ];
+  const liga2 = (ok, erro) => ({ main: [[{ node: ok, type: 'main', index: 0 }], [{ node: erro, type: 'main', index: 0 }]] });
+  const connections = {
+    'A cada 15 dias': liga('Baixar lista oficial'),
+    'Baixar lista oficial': liga2('Ler planilha', AVISO),
+    'Ler planilha': liga2('Validar planilha', AVISO),
+    'Validar planilha': liga('Planilha ok?'),
+    'Planilha ok?': liga2('Gravar farmácias', AVISO),
+    'Gravar farmácias': liga2('Desativar quem saiu', AVISO),
+    'Desativar quem saiu': liga2('Padronizar busca', AVISO),
+    'Padronizar busca': { main: [[], [{ node: AVISO, type: 'main', index: 0 }]] },
+  };
+  return { name: 'Tá na Lista — Atualizar farmácias (a cada 15 dias)', nodes, connections, settings: CONFIG_LGPD };
+}
+
 salvar('ta_na_lista_fase1.json', fase1());
 salvar('ta_na_lista_whatsapp.json', fase2());
+salvar('ta_na_lista_atualizar_farmacias.json', atualizarFarmacias());
