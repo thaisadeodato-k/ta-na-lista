@@ -107,7 +107,8 @@ Você vai precisar de: conta no **Supabase** (grátis), conta no **n8n Cloud** (
 6. Siga os 20 casos de [`tests/casos_de_teste.md`](../tests/casos_de_teste.md).
 
 ### 3.5 Se algo der errado
-- Aba **Executions** (no topo do fluxo): mostra cada execução e em qual nó parou. O nó com erro fica vermelho.
+- Aba **Executions** (no topo do fluxo): mostra as execuções **com erro** e em qual nó pararam. O nó com erro fica vermelho.
+  - **LGPD:** os dois fluxos estão configurados (**…** → **Settings**) com *Save successful production executions* = **Do not save**, *Save failed production executions* = **Save**, *Save manual executions* = **Do not save** e *Save execution progress* = **Do not save**. Assim, conversas que deram certo não ficam guardadas, e as com erro somem sozinhas em até 7 dias (limpeza automática do n8n Cloud). Se precisar depurar algo, ligue o "salvar" por pouco tempo e desligue depois.
 - **Erro de conexão no Postgres** (ex.: `ENETUNREACH`, `timeout`): confira se usou o **Session pooler** e o **User** com o código depois do ponto.
 - **Zé responde "Ops, tive um probleminha"**: abra o nó **Claude: ler receita** na execução e veja a resposta:
   - `authentication_error` → chave errada ou sem crédito.

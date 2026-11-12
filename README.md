@@ -49,6 +49,8 @@ O fluxo do n8n tem **uma entrada** ("Entrada → formato padrão") e **uma saíd
 - O identificador da pessoa (telefone/sessão) vira um **hash HMAC-SHA256** com chave secreta guardada no banco.
 - A conversa guarda só o **estado** e referências à lista oficial, e **expira em 24 horas**.
 - O comando **APAGAR** remove os dados da pessoa na hora.
+- Sem uso por **6 meses**, o código e o consentimento são apagados automaticamente (limpeza a cada hora, `pg_cron`).
+- O n8n **não guarda** execuções que deram certo; as com erro somem sozinhas em até 7 dias.
 - As métricas são anônimas (não ligam a nenhuma pessoa).
 - A foto é enviada à API do Claude apenas para leitura. Ela não fica salva no projeto.
 

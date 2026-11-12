@@ -80,6 +80,8 @@ create table if not exists public.usuario (
   consentiu_em   timestamptz,
   criado_em      timestamptz not null default now()
 );
+-- Último uso (LGPD): quem não usa o Zé há 6 meses é apagado automaticamente
+alter table public.usuario add column if not exists visto_em timestamptz not null default now();
 
 -- Conversa: estado atual + contexto mínimo (referências à lista oficial). Expira em 24 h.
 create table if not exists public.conversa (
@@ -627,6 +629,7 @@ begin
     if p_acao = 'consentir' then
       update usuario set consentiu_em = now() where usuario_hash = p_hash;
     end if;
+    update usuario set visto_em = now() where usuario_hash = p_hash;
     insert into conversa (usuario_hash, estado, contexto, atualizado_em)
     values (p_hash, coalesce(p_estado, 'novo'), coalesce(p_contexto, '{}'::jsonb), now())
     on conflict (usuario_hash) do update
@@ -645,13 +648,17 @@ $$;
 create or replace function public.tnl_limpar_expiradas()
 returns jsonb language plpgsql
 set search_path = public, extensions as $$
-declare a int; b int;
+declare a int; b int; c int;
 begin
   delete from conversa where atualizado_em < now() - interval '24 hours';
   get diagnostics a = row_count;
   delete from usuario where consentiu_em is null and criado_em < now() - interval '24 hours';
   get diagnostics b = row_count;
-  return jsonb_build_object('conversas_apagadas', a, 'usuarios_sem_consentimento_apagados', b);
+  -- LGPD: sem uso há 6 meses, apaga o código e o consentimento (a pessoa só precisa dizer SIM de novo)
+  delete from usuario where visto_em < now() - interval '6 months';
+  get diagnostics c = row_count;
+  return jsonb_build_object('conversas_apagadas', a, 'usuarios_sem_consentimento_apagados', b,
+                            'usuarios_inativos_apagados', c);
 end;
 $$;
 

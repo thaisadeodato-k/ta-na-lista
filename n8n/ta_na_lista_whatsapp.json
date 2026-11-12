@@ -1333,7 +1333,9 @@
   "settings": {
     "executionOrder": "v1",
     "saveDataSuccessExecution": "none",
-    "saveDataErrorExecution": "all"
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
   },
   "meta": {
     "templateCredsSetupCompleted": false

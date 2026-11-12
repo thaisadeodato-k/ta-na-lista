@@ -34,6 +34,15 @@ function codigo(arquivo) {
 let seq = 0;
 const id = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`;
 
+// LGPD: não guardar execuções bem-sucedidas nem manuais (teriam telefone, texto, áudio e foto da receita).
+// Execuções com erro ficam salvas para diagnóstico e o n8n Cloud apaga sozinho em até 7 dias.
+const CONFIG_LGPD = {
+  saveDataSuccessExecution: 'none',
+  saveDataErrorExecution: 'all',
+  saveManualExecutions: false,
+  saveExecutionProgress: false,
+};
+
 const CRED_PG = { postgres: { id: 'preencher-supabase', name: 'Supabase Postgres (Tá na Lista)' } };
 const CRED_CLAUDE = { httpHeaderAuth: { id: 'preencher-claude', name: 'Claude API (x-api-key)' } };
 const CRED_WA_TOKEN = { httpHeaderAuth: { id: 'preencher-wa-token', name: 'WhatsApp token (Bearer)' } };
@@ -118,7 +127,10 @@ function meio() {
     code('Preparar extração', '03_preparar_extracao.js', [1100, 0]),
     claude('Claude: ler receita', [1320, 0]),
     code('Ler extração', '04_ler_extracao.js', [1540, 0]),
-    pg('Consultar base oficial', "select public.verificar_medicamentos(convert_from(decode($1, 'base64'), 'UTF8')::jsonb) as r;", '={{ $json.lista_b64 }}', [1760, 0]),
+    pg('Consultar base oficial',
+      "select public.verificar_medicamentos(convert_from(decode($1, 'base64'), 'UTF8')::jsonb) as r, " +
+      "public.tnl_farmacias_para_texto(convert_from(decode($2, 'base64'), 'UTF8'), 3) as local;",
+      '={{ $json.lista_b64 }},{{ $json.local_b64 }}', [1760, 0]),
     code('Montar confirmação', '05_montar_confirmacao.js', [1980, 0]),
     code('Preparar redação', '06_preparar_redacao.js', [1100, 300]),
     claude('Claude: redigir resposta do Zé', [1320, 300]),
@@ -193,7 +205,7 @@ function fase1() {
     ...m.connections,
     'Salvar conversa': liga('Saída → chat (Fase 1)'),
   };
-  return { name: 'Tá na Lista — Fase 1 (chat de teste)', nodes, connections };
+  return { name: 'Tá na Lista — Fase 1 (chat de teste)', nodes, connections, settings: CONFIG_LGPD };
 }
 
 // ---------- FASE 2: WhatsApp Cloud API ----------
@@ -300,9 +312,7 @@ function fase2() {
     ...m.connections,
     'Salvar conversa': liga('Saída → WhatsApp'),
   };
-  // LGPD: não guardar execuções bem-sucedidas (elas teriam texto e foto da receita).
-  // Execuções com erro ficam salvas para diagnóstico e são apagadas pela retenção do n8n.
-  return { name: 'Tá na Lista — WhatsApp', nodes, connections, settings: { saveDataSuccessExecution: 'none', saveDataErrorExecution: 'all' } };
+  return { name: 'Tá na Lista — WhatsApp', nodes, connections, settings: CONFIG_LGPD };
 }
 
 function salvar(arquivo, { name, nodes, connections, settings = {} }) {

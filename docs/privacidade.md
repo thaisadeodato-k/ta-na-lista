@@ -19,7 +19,7 @@ Como a foto de uma receita e o nome de um remédio podem revelar informações s
 | Dado | Para quê | Fica guardado? |
 |---|---|---|
 | Seu número de WhatsApp | Saber em que passo a conversa está e responder você | **Não em formato legível.** Guardamos só um código (hash criptográfico com chave secreta) gerado a partir do número. O número em si só passa pela memória do sistema no momento de responder. |
-| Data do seu consentimento | Não pedir o consentimento de novo a cada conversa | Sim, junto com o código acima, até você pedir para apagar. |
+| Data do seu consentimento | Não pedir o consentimento de novo a cada conversa | Sim, junto com o código acima, até você escrever APAGAR ou até **6 meses sem uso** (o que vier primeiro). |
 | Foto ou PDF da receita, ou nome do remédio que você escreve | Identificar o medicamento | **Não.** A foto, o PDF e o texto são lidos e descartados. |
 | Medicamentos reconhecidos na lista oficial e a data da receita | Responder se o remédio é gratuito | Por no máximo **24 horas**, só como referência aos itens da lista oficial. Não guardamos o texto que você escreveu nem o nome do paciente ou do médico. |
 | Mensagem de voz (áudio) | Transformar a fala em texto, como se você tivesse escrito | **Não.** O áudio é transcrito e descartado. Só é transcrito depois que você respondeu SIM ao consentimento. |
@@ -47,16 +47,17 @@ Não vendemos, alugamos nem usamos seus dados para publicidade.
 
 ## 4. Por quanto tempo
 
-- A conversa expira em **24 horas** e é apagada automaticamente.
-- O código do seu número e a data do consentimento ficam até você escrever APAGAR.
-- Registros técnicos de erro da plataforma, quando existem, servem só para corrigir falhas e são apagados periodicamente.
+- A conversa expira em **24 horas** e é apagada automaticamente (a limpeza roda a cada hora).
+- O código do seu número e a data do consentimento ficam até você escrever **APAGAR** ou até **6 meses sem uso** — o que vier primeiro. Depois disso, se voltar, o Zé só pede o SIM de novo.
+- Se você nunca respondeu SIM, o código é apagado em até **24 horas**.
+- A plataforma que organiza a conversa (n8n) **não guarda** as conversas que deram certo. Quando algo dá **erro**, um registro técnico da execução (que pode conter a mensagem enviada) fica guardado só para corrigir a falha e é **apagado automaticamente em até 7 dias**.
 - As estatísticas anônimas podem ser mantidas para avaliar o projeto.
 
 ## 5. Como apagar seus dados
 
 Você pode pedir a exclusão a qualquer momento, de dois jeitos:
 
-1. **Pelo WhatsApp:** escreva **APAGAR** para o Zé. Os seus dados são apagados na hora e você recebe a confirmação.
+1. **Pelo WhatsApp:** escreva **APAGAR** para o Zé. Os seus dados (código, consentimento, conversa e o que estiver em andamento) são apagados na hora e você recebe a confirmação. Registros técnicos de erro que por acaso existam somem sozinhos em até 7 dias.
 2. **Pela equipe do projeto:** abra uma solicitação em <https://github.com/thaisadeodato-k/ta-na-lista/issues> com o título "Exclusão de dados". **Não escreva o seu número de telefone** na solicitação, porque ela é pública: a equipe vai combinar com você um jeito privado de identificar a sua conversa.
 
 ## 6. Seus direitos
