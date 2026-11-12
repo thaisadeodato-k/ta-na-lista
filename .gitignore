@@ -5,3 +5,6 @@ node_modules/
 Thumbs.db
 # Nunca suba chaves, senhas ou exportações de credenciais do n8n
 credenciais*.json
+
+# Gerados por scripts/importar_farmacias.mjs (grandes)
+db/farmacias_pfpb_*.sql

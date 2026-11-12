@@ -119,19 +119,20 @@ As chamadas ao Claude usam `fallbacks: "default"`. Se o modelo principal recusar
 
 ---
 
-## Parte 4 — Farmácias da cidade piloto
+## Parte 4 — Farmácias do Programa (lista oficial)
 
-O arquivo [`data/farmacias_exemplo.csv`](../data/farmacias_exemplo.csv) tem 5 farmácias **fictícias** em São Paulo, só para testar. Para o piloto:
+As farmácias vêm da planilha oficial **"Farmácias participantes do PFPB"**, do Ministério da Saúde (todo o Brasil, ~27,5 mil farmácias). A cópia usada está em [`data/farmacias_pfpb.csv`](../data/farmacias_pfpb.csv).
 
-1. Levante as farmácias credenciadas da cidade:
-   - página do programa: <https://www.gov.br/saude/pt-br/assuntos/farmaciapopular> (procure a busca de farmácias credenciadas);
-   - Portal de Dados Abertos: <https://dados.gov.br> (busque "Farmácia Popular");
-   - ou a Secretaria Municipal de Saúde.
-2. Para cada farmácia, pegue a **latitude e longitude**: no Google Maps, clique com o botão direito no local → clique nos números que aparecem (ficam copiados, ex.: `-23.5505, -46.6333`).
-3. Preencha o CSV (pode abrir no Excel/Google Sheets e salvar como **CSV separado por vírgula**, com ponto decimal nas coordenadas).
-4. Para levar ao banco, escolha um jeito:
-   - **Pelo projeto**: rode `node scripts/gerar_seed.mjs` e cole o novo `db/seed.sql` no SQL Editor; ou
-   - **Pelo Supabase**: **Table Editor** → tabela `farmacia` → apague as linhas de exemplo → **Insert** → **Import data from CSV**.
+Para atualizar quando o Ministério publicar uma nova versão:
+1. Baixe a planilha (.xlsx) em <https://www.gov.br/saude/pt-br/composicao/sectics/farmacia-popular/publicacoes/farmacias-participante-do-programa-farmacia-popular/view>.
+2. Rode `node scripts/importar_farmacias.mjs "caminho/da/planilha.xlsx"`. Ele gera o CSV e os arquivos `db/farmacias_pfpb_1.sql`, `_2.sql`… (em partes, porque o SQL Editor não aceita um arquivo gigante).
+3. Leve para o Supabase de um destes jeitos:
+   - **SQL Editor**: rode as partes **em ordem**. A última desativa quem saiu da lista e mostra quantas farmácias ficaram ativas; ou
+   - **Table Editor** → tabela `farmacia` → **Insert** → **Import data from CSV** → escolha `data/farmacias_pfpb.csv`. Depois, no SQL Editor, rode `update public.farmacia set ativo = true, lista_de = 'AAAA-MM-DD' where lista_de is null;` (com a data da lista) e, **numa execução separada**, `select public.tnl_farmacias_normalizar();`.
+
+> Os arquivos `db/farmacias_pfpb_N.sql` não vão para o GitHub (são grandes e saem do script).
+
+**Como a busca funciona:** a planilha oficial não tem latitude/longitude. Por isso o Zé usa o **bairro** e a **cidade** do CEP (vindos da BrasilAPI): primeiro farmácias do mesmo bairro (aceita abreviações como "JD" = Jardim), e, se não houver, farmácias da mesma cidade. Se um dia as farmácias tiverem coordenadas (colunas `lat`/`lon`), a busca por distância volta a valer sozinha.
 
 ---
 

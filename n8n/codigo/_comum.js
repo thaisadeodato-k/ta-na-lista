@@ -46,9 +46,10 @@ const MSG = {
     'Outra pessoa pode retirar por você, levando uma procuração.',
   INSUMO: 'Pra fralda geriátrica e absorvente, confirme na farmácia o que levar, porque as regras podem ser diferentes.',
   CONFIRA_ESTOQUE: 'Vale confirmar na farmácia se o remédio tá em estoque. Se precisar de outra receita, é só mandar a foto.',
+  NOME_FACHADA: 'O nome na fachada pode ser diferente: procure a placa "Aqui tem Farmácia Popular".',
   SEM_FARMACIA_PERTO:
-    'Ainda não tenho farmácias cadastradas perto desse CEP. ' +
-    'Procure uma farmácia com a placa "Aqui tem Farmácia Popular".',
+    'Pela lista oficial, não achei farmácia do Farmácia Popular na sua cidade. ' +
+    'Procure uma farmácia com a placa "Aqui tem Farmácia Popular" ou pergunte na UBS (posto de saúde).',
 };
 
 // Codifica em base64 para mandar ao Postgres sem problema com vírgulas e aspas

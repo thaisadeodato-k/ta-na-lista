@@ -70,7 +70,7 @@ docs/      passo a passo de configuração (Fase 1 e Fase 2)
   <https://www.gov.br/saude/pt-br/composicao/sectics/farmacia-popular/arquivos/elenco-de-medicamentos-e-insumos-pfpb.pdf>
   - O PDF traz princípio ativo, concentração e indicação. **A coluna `forma` não está no PDF**: foi preenchida com a apresentação usual e precisa ser **conferida por farmacêutico**.
 - **Marcas comerciais** (`marca_principio.csv`): lista inicial, **a revisar por farmacêutico**.
-- **Farmácias** (`farmacias_exemplo.csv`): dados **fictícios** para teste. Substitua pelas farmácias credenciadas da cidade piloto.
+- **Farmácias** (`farmacias_pfpb.csv`): lista oficial "Farmácias participantes do PFPB", Ministério da Saúde (lista de 02/10/2026, 27.538 farmácias). Para atualizar: `node scripts/importar_farmacias.mjs planilha.xlsx` (ver [docs/configuracao.md](docs/configuracao.md#parte-4--farmácias-do-programa-lista-oficial)).
 
 Quando o Ministério atualizar a lista, atualize `data/elenco_pfp.csv`, rode `node scripts/gerar_seed.mjs` e cole o novo `db/seed.sql` no Supabase.
 

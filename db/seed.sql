@@ -183,14 +183,8 @@ insert into public.sinonimo (termo, chave) values
   ('fralda geriatrica', 'fralda geriatrica'),
   ('fraldas geriatricas', 'fralda geriatrica');
 
--- Farmácias (5)
-delete from public.farmacia;
-insert into public.farmacia (cnpj, nome, endereco, municipio, lat, lon) values
-  ('00.000.000/0001-01', 'Farmácia Exemplo Sé (FICTÍCIA)', 'Praça da Sé 100 - Sé', 'São Paulo', -23.5505, -46.6333),
-  ('00.000.000/0001-02', 'Farmácia Exemplo Liberdade (FICTÍCIA)', 'Rua da Liberdade 200 - Liberdade', 'São Paulo', -23.5587, -46.6347),
-  ('00.000.000/0001-03', 'Farmácia Exemplo Paulista (FICTÍCIA)', 'Avenida Paulista 1000 - Bela Vista', 'São Paulo', -23.5614, -46.6559),
-  ('00.000.000/0001-04', 'Farmácia Exemplo Pinheiros (FICTÍCIA)', 'Rua dos Pinheiros 300 - Pinheiros', 'São Paulo', -23.567, -46.693),
-  ('00.000.000/0001-05', 'Farmácia Exemplo Mooca (FICTÍCIA)', 'Rua da Mooca 400 - Mooca', 'São Paulo', -23.56, -46.599);
+-- As farmácias vêm da lista oficial do Ministério da Saúde:
+-- node scripts/importar_farmacias.mjs planilha.xlsx  ->  rode db/farmacias_pfpb_1.sql, _2.sql, ...
 
 commit;
 

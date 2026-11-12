@@ -38,7 +38,6 @@ const num = v => (v === '' || v == null || isNaN(Number(v))) ? 'null' : String(N
 const elenco = lerCsv('elenco_pfp.csv');
 const marcas = lerCsv('marca_principio.csv');
 const sinonimos = lerCsv('sinonimo.csv');
-const farmacias = lerCsv('farmacias_exemplo.csv');
 
 // Conferências básicas
 const chaves = new Set(elenco.map(e => e.chave));
@@ -69,10 +68,8 @@ delete from public.sinonimo;
 insert into public.sinonimo (termo, chave) values
 ${sinonimos.map(s => `  (${q(s.termo)}, ${q(s.chave)})`).join(',\n')};
 
--- Farmácias (${farmacias.length})
-delete from public.farmacia;
-insert into public.farmacia (cnpj, nome, endereco, municipio, lat, lon) values
-${farmacias.map(f => `  (${q(f.cnpj)}, ${q(f.nome)}, ${q(f.endereco)}, ${q(f.municipio)}, ${num(f.lat)}, ${num(f.lon)})`).join(',\n')};
+-- As farmácias vêm da lista oficial do Ministério da Saúde:
+-- node scripts/importar_farmacias.mjs planilha.xlsx  ->  rode db/farmacias_pfpb_1.sql, _2.sql, ...
 
 commit;
 
@@ -81,4 +78,4 @@ select count(*) as itens_na_lista_oficial from public.elenco_pfp;
 `;
 
 writeFileSync(join(raiz, 'db', 'seed.sql'), sql, 'utf8');
-console.log(`OK: db/seed.sql gerado (${elenco.length} itens, ${marcas.length} marcas, ${sinonimos.length} sinônimos, ${farmacias.length} farmácias).`);
+console.log(`OK: db/seed.sql gerado (${elenco.length} itens, ${marcas.length} marcas, ${sinonimos.length} sinônimos).`);
