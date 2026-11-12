@@ -164,6 +164,8 @@ O arquivo [`data/farmacias_exemplo.csv`](../data/farmacias_exemplo.csv) tem 5 fa
 1. **WhatsApp OAuth API** (para o gatilho): Client ID = **App ID**, Client Secret = **App Secret**. Nome: `WhatsApp Trigger (Tá na Lista)`.
 2. **Header Auth** (para baixar fotos e enviar respostas): Name = `Authorization`, Value = `Bearer SEU_TOKEN` (a palavra Bearer, um espaço e o token). Nome: `WhatsApp token (Bearer)`.
    - Em **Allowed HTTP Request Domains**, escolha **Specific Domains** e coloque `graph.facebook.com, lookaside.fbsbx.com` (o token só pode ir para a Meta).
+3. **Header Auth** (para transformar áudio em texto): crie uma conta em <https://console.groq.com>, gere uma chave em **API Keys** e preencha Name = `Authorization`, Value = `Bearer SUA_CHAVE_GROQ`. Nome: `Groq API (Bearer)`.
+   - Em **Allowed HTTP Request Domains**: **Specific Domains** → `api.groq.com`.
 
 ### F2.5 Importar o fluxo do WhatsApp
 O fluxo já vem pronto em [`n8n/ta_na_lista_whatsapp.json`](../n8n/ta_na_lista_whatsapp.json). É um fluxo **separado** do chat de teste: o "meio" é idêntico, só a entrada e a saída mudam.
@@ -173,13 +175,15 @@ O fluxo já vem pronto em [`n8n/ta_na_lista_whatsapp.json`](../n8n/ta_na_lista_w
 2. Abra os nós com alerta de credencial e selecione:
    - **WhatsApp Trigger** → `WhatsApp Trigger (Tá na Lista)`
    - **Meta: pegar URL da mídia**, **Meta: baixar mídia**, **Saída → WhatsApp** → `WhatsApp token (Bearer)`
-   - nós do Postgres e do Claude → as mesmas credenciais da Fase 1.
+   - **Transcrever áudio (Groq)** → `Groq API (Bearer)`
+   - nós do Postgres (inclusive **Já aceitou os termos?**) e do Claude → as mesmas credenciais da Fase 1.
 3. Não precisa digitar o Phone number ID: o fluxo responde pelo mesmo número que recebeu a mensagem.
 
 O que o fluxo faz na entrada:
-- **WhatsApp: separar mensagem** pega quem mandou, o texto e o ID da foto. Avisos de "entregue/lido" são ignorados.
-- **Tem mídia?** → se for foto, **Meta: pegar URL da mídia** e **Meta: baixar mídia** trazem a imagem (só na memória da execução).
-- **Entrada → formato padrão** monta o formato padrão. Celulares do Brasil que chegam sem o 9 recebem o 9 de volta, para a resposta não ser recusada.
+- **WhatsApp: separar mensagem** pega quem mandou, o texto e o ID da foto, do PDF ou do áudio. Avisos de "entregue/lido" são ignorados. Celulares do Brasil que chegam sem o 9 recebem o 9 de volta, para a resposta não ser recusada.
+- **Tem mídia?** → se for foto, PDF ou áudio, **Meta: pegar URL da mídia** e **Meta: baixar mídia** trazem o arquivo (só na memória da execução).
+- **É áudio?** → **Já aceitou os termos?** confere no banco se a pessoa já respondeu SIM. Só então **Preparar áudio** e **Transcrever áudio (Groq)** transformam a fala em texto (modelo `whisper-large-v3-turbo`). Antes do SIM, o áudio não sai do n8n.
+- **Entrada → formato padrão** monta o formato padrão. O texto falado entra como se a pessoa tivesse digitado; se a transcrição falhar, o Zé pede para gravar de novo ou escrever.
 
 ### F2.6 Saída
 O nó **Saída → WhatsApp** envia a resposta pela Graph API (`/messages`). O telefone só existe na memória da execução; no banco ele é sempre hash.
@@ -192,7 +196,7 @@ O nó **Saída → WhatsApp** envia a resposta pela Graph API (`/messages`). O t
 ### F2.8 Cuidados na Fase 2
 - **Janela de 24 h**: pelo WhatsApp, o bot só pode responder livremente até 24 h depois da última mensagem da pessoa. Mensagens iniciadas pelo bot (ex.: lembretes) exigem **templates aprovados** pela Meta.
 - **Política de IA do WhatsApp**: o escopo já é fechado (só Farmácia Popular); mantenha assim.
-- **Áudio**: a API do Claude não recebe áudio. Por enquanto o Zé pede foto ou texto. Para aceitar áudio, será preciso adicionar um serviço de transcrição antes do nó "Entrada → formato padrão".
+- **Áudio**: a API do Claude não recebe áudio, por isso a transcrição é feita pelo Groq. O consentimento pede para *escrever* SIM, porque antes dele nenhum áudio é transcrito.
 - **Privacidade**: no consentimento, o Zé já explica que a foto é lida pelo Claude (Anthropic). Revise o texto com quem cuida da parte jurídica do projeto antes do piloto com o público.
 
 ---

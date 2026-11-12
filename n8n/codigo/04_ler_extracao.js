@@ -14,6 +14,7 @@ try { ext = JSON.parse(res.texto); } catch (e) {
 }
 
 if (ext.assunto === 'pergunta_clinica') return parar({ resposta: MSG.FORA_CLINICO, evento: 'fora_clinico' });
+if (ext.assunto === 'pergunta_lista') return parar({ resposta: MSG.DICA_LISTA, evento: 'dica_lista' });
 if (ext.assunto === 'fora_do_escopo') return parar({ resposta: MSG.FORA_ESCOPO, evento: 'fora_escopo' });
 
 const meds = (ext.medicamentos || [])

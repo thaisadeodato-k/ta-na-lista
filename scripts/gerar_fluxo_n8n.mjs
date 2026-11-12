@@ -38,6 +38,10 @@ const CRED_PG = { postgres: { id: 'preencher-supabase', name: 'Supabase Postgres
 const CRED_CLAUDE = { httpHeaderAuth: { id: 'preencher-claude', name: 'Claude API (x-api-key)' } };
 const CRED_WA_TOKEN = { httpHeaderAuth: { id: 'preencher-wa-token', name: 'WhatsApp token (Bearer)' } };
 const CRED_WA_TRIGGER = { whatsAppTriggerApi: { id: 'preencher-wa-trigger', name: 'WhatsApp Trigger (Tá na Lista)' } };
+const CRED_GROQ = { httpHeaderAuth: { id: 'preencher-groq', name: 'Groq API (Bearer)' } };
+// Transcrição de áudio (Fase 2). Nomes de remédio no "prompt" ajudam o Whisper a acertar a grafia.
+const MODELO_TRANSCRICAO = 'whisper-large-v3-turbo';
+const DICA_TRANSCRICAO = 'Receita de remédio do Farmácia Popular: losartana, metformina, sinvastatina, atenolol, captopril, glibenclamida, hidroclorotiazida, insulina, salbutamol, levodopa. CEP.';
 
 const code = (name, arquivo, pos) => ({
   parameters: { jsCode: codigo(arquivo) },
@@ -105,6 +109,7 @@ function meio() {
         regra('extrair', 'Ler receita'),
         regra('resultado', 'Dizer se está na lista'),
         regra('cep', 'Buscar farmácias'),
+        regra('lista', 'Mostrar a lista'),
       ] }, options: {} },
       id: id(), name: 'Rota', type: 'n8n-nodes-base.switch', typeVersion: 3.2, position: [880, 300],
     },
@@ -130,6 +135,8 @@ function meio() {
       "select public.tnl_farmacias_para_cep(public.tnl_num($1), public.tnl_num($2), trim(convert_from(decode($3, 'base64'), 'UTF8')), 3) as r;",
       '={{ $json.lat }},{{ $json.lon }},{{ $json.municipio_b64 }}', [1540, 560]),
     code('Montar resposta farmácias', '09_montar_farmacias.js', [1760, 560]),
+    pg('Listar remédios da lista oficial', 'select public.tnl_listar_elenco($1) as r;', '={{ $json.filtro_lista }}', [1100, 800]),
+    code('Montar lista', '11_montar_lista.js', [1320, 800]),
     { parameters: {}, id: id(), name: 'Juntar resposta', type: 'n8n-nodes-base.noOp', typeVersion: 1, position: [2200, 300] },
     pg('Salvar conversa',
       "select public.tnl_salvar_conversa($1, $2, $3, convert_from(decode($4, 'base64'), 'UTF8')::jsonb, nullif($5, '-'), convert_from(decode($6, 'base64'), 'UTF8')::jsonb) as r;",
@@ -140,7 +147,9 @@ function meio() {
     'Entrada → formato padrão': liga('Carregar conversa'),
     'Carregar conversa': liga('Decidir rota'),
     'Decidir rota': liga('Rota'),
-    'Rota': liga('Juntar resposta', 'Preparar extração', 'Preparar redação', 'CEP → coordenadas'),
+    'Rota': liga('Juntar resposta', 'Preparar extração', 'Preparar redação', 'CEP → coordenadas', 'Listar remédios da lista oficial'),
+    'Listar remédios da lista oficial': liga('Montar lista'),
+    'Montar lista': liga('Juntar resposta'),
     'Preparar extração': liga('Claude: ler receita'),
     'Claude: ler receita': liga('Ler extração'),
     'Ler extração': liga('Consultar base oficial'),
@@ -185,13 +194,13 @@ function fase1() {
 function fase2() {
   const m = meio();
   const nodes = [
-    nota('## 🔌 ENTRADA (WhatsApp)\nRecebe a mensagem da Meta. Se vier foto, baixa a imagem (fica só na memória desta execução; nada é salvo).', [-700, 120], 1120, 420, 4),
+    nota('## 🔌 ENTRADA (WhatsApp)\nRecebe a mensagem da Meta. Se vier foto ou PDF, baixa o arquivo; se vier áudio, baixa e transforma a fala em texto (Groq). Tudo fica só na memória desta execução; nada é salvo.', [-1760, -200], 2180, 740, 4),
     {
       parameters: { updates: ['messages'] },
       id: id(), name: 'WhatsApp Trigger', type: 'n8n-nodes-base.whatsAppTrigger', typeVersion: 1,
-      position: [-640, 300], webhookId: '7a1e0c55-4d1f-4b7e-9a51-7a6e11a0c002', credentials: CRED_WA_TRIGGER,
+      position: [-1700, 300], webhookId: '7a1e0c55-4d1f-4b7e-9a51-7a6e11a0c002', credentials: CRED_WA_TRIGGER,
     },
-    code('WhatsApp: separar mensagem', 'fase2_separar_whatsapp.js', [-440, 300]),
+    code('WhatsApp: separar mensagem', 'fase2_separar_whatsapp.js', [-1500, 300]),
     {
       parameters: {
         conditions: {
@@ -201,10 +210,58 @@ function fase2() {
         },
         options: {},
       },
-      id: id(), name: 'Tem mídia?', type: 'n8n-nodes-base.if', typeVersion: 2.2, position: [-240, 300],
+      id: id(), name: 'Tem mídia?', type: 'n8n-nodes-base.if', typeVersion: 2.2, position: [-1300, 300],
     },
-    metaGet('Meta: pegar URL da mídia', `=${GRAPH}/{{ $json.media_id }}`, [-40, 200]),
-    metaGet('Meta: baixar mídia', '={{ $json.url }}', [120, 200], true),
+    metaGet('Meta: pegar URL da mídia', `=${GRAPH}/{{ $json.media_id }}`, [-1100, 200]),
+    metaGet('Meta: baixar mídia', '={{ $json.url }}', [-900, 200], true),
+    {
+      parameters: {
+        conditions: {
+          options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 },
+          conditions: [{ id: id(), leftValue: "={{ $('WhatsApp: separar mensagem').first().json.tipo }}", rightValue: 'audio', operator: { type: 'string', operation: 'equals' } }],
+          combinator: 'and',
+        },
+        options: {},
+      },
+      id: id(), name: 'É áudio?', type: 'n8n-nodes-base.if', typeVersion: 2.2, position: [-700, 200],
+    },
+    // LGPD: o áudio só vai para a transcrição se a pessoa já respondeu SIM ao consentimento
+    pg('Já aceitou os termos?',
+      'select exists(select 1 from public.usuario where usuario_hash = public.tnl_hash($1) and consentiu_em is not null) as ok;',
+      "={{ $('WhatsApp: separar mensagem').first().json.id_bruto }}", [-500, 40]),
+    {
+      parameters: {
+        conditions: {
+          options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 },
+          conditions: [{ id: id(), leftValue: '={{ $json.ok }}', rightValue: '', operator: { type: 'boolean', operation: 'true', singleValue: true } }],
+          combinator: 'and',
+        },
+        options: {},
+      },
+      id: id(), name: 'Pode transcrever?', type: 'n8n-nodes-base.if', typeVersion: 2.2, position: [-300, 40],
+    },
+    code('Preparar áudio', 'fase2_preparar_audio.js', [-100, -60]),
+    {
+      parameters: {
+        method: 'POST',
+        url: 'https://api.groq.com/openai/v1/audio/transcriptions',
+        authentication: 'genericCredentialType',
+        genericAuthType: 'httpHeaderAuth',
+        sendBody: true,
+        contentType: 'multipart-form-data',
+        bodyParameters: { parameters: [
+          { parameterType: 'formBinaryData', name: 'file', inputDataFieldName: 'data' },
+          { name: 'model', value: MODELO_TRANSCRICAO },
+          { name: 'language', value: 'pt' },
+          { name: 'response_format', value: 'json' },
+          { name: 'temperature', value: '0' },
+          { name: 'prompt', value: DICA_TRANSCRICAO },
+        ] },
+        options: { timeout: 60000, response: { response: { neverError: true } } },
+      },
+      id: id(), name: 'Transcrever áudio (Groq)', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [100, -60],
+      credentials: CRED_GROQ, onError: 'continueRegularOutput',
+    },
     code('Entrada → formato padrão', 'fase2_entrada_whatsapp.js', [260, 300]),
     ...m.nodes,
     nota('## 📤 SAÍDA (WhatsApp)\nResponde pelo mesmo número que recebeu a mensagem. O telefone da pessoa só existe na memória da execução; no banco ele é sempre hash.', [2580, 120], 320, 400, 4),
@@ -228,7 +285,12 @@ function fase2() {
     'WhatsApp: separar mensagem': liga('Tem mídia?'),
     'Tem mídia?': liga('Meta: pegar URL da mídia', 'Entrada → formato padrão'),
     'Meta: pegar URL da mídia': liga('Meta: baixar mídia'),
-    'Meta: baixar mídia': liga('Entrada → formato padrão'),
+    'Meta: baixar mídia': liga('É áudio?'),
+    'É áudio?': liga('Já aceitou os termos?', 'Entrada → formato padrão'),
+    'Já aceitou os termos?': liga('Pode transcrever?'),
+    'Pode transcrever?': liga('Preparar áudio', 'Entrada → formato padrão'),
+    'Preparar áudio': liga('Transcrever áudio (Groq)'),
+    'Transcrever áudio (Groq)': liga('Entrada → formato padrão'),
     ...m.connections,
     'Salvar conversa': liga('Saída → WhatsApp'),
   };

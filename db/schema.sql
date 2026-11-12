@@ -158,7 +158,8 @@ $$;
 -- Entrada: nome como escrito na receita + concentração lida (pode ser vazia).
 -- Saída (jsonb):
 --   status: 'na_lista' | 'na_lista_sem_concentracao' | 'concentracao_fora_da_lista' | 'nao_encontrado'
---   chave, principio_ativo, tipo, concentracoes_oficiais[], como_encontrado, similaridade
+--   chave, principio_ativo, tipo, concentracoes_oficiais[], como_encontrado, similaridade,
+--   marca_reconhecida (nome de marca da tabela marca_principio, quando o nome escrito era uma marca)
 create or replace function public.verificar_medicamento(p_nome text, p_concentracao text)
 returns jsonb language plpgsql stable
 set search_path = public, extensions as $$
@@ -172,6 +173,7 @@ declare
   v_princ    text;
   v_concs    jsonb;
   v_status   text;
+  v_marca    text;
 begin
   -- 1. Limpa o nome: tira números/unidades e palavras que não são nome de remédio
   n := regexp_replace(coalesce(p_nome, ''), '\d+([.,]\d+)?\s*(mg|mcg|g|ml|ui|%)?', ' ', 'gi');
@@ -186,23 +188,23 @@ begin
 
   -- 2. Busca a chave em 3 níveis: exato > contém todas as palavras > aproximado
   with termos as (
-    select tnl_normaliza(chave) as termo, chave, 1 as prio from elenco_pfp
-    union all select tnl_normaliza(principio_ativo), chave, 1 from elenco_pfp
-    union all select tnl_normaliza(termo), chave, 2 from sinonimo
-    union all select tnl_normaliza(marca), chave, 3 from marca_principio
+    select tnl_normaliza(chave) as termo, chave, 1 as prio, null::text as marca from elenco_pfp
+    union all select tnl_normaliza(principio_ativo), chave, 1, null from elenco_pfp
+    union all select tnl_normaliza(termo), chave, 2, null from sinonimo
+    union all select tnl_normaliza(marca), chave, 3, marca from marca_principio
   )
-  select t.chave, 'exato' into v_chave, v_como
+  select t.chave, 'exato', t.marca into v_chave, v_como, v_marca
   from termos t where t.termo = n
   order by t.prio limit 1;
 
   if v_chave is null then
     with termos as (
-      select tnl_normaliza(chave) as termo, chave from elenco_pfp
-      union all select tnl_normaliza(principio_ativo), chave from elenco_pfp
-      union all select tnl_normaliza(termo), chave from sinonimo
-      union all select tnl_normaliza(marca), chave from marca_principio
+      select tnl_normaliza(chave) as termo, chave, null::text as marca from elenco_pfp
+      union all select tnl_normaliza(principio_ativo), chave, null from elenco_pfp
+      union all select tnl_normaliza(termo), chave, null from sinonimo
+      union all select tnl_normaliza(marca), chave, marca from marca_principio
     )
-    select t.chave, 'contem' into v_chave, v_como
+    select t.chave, 'contem', t.marca into v_chave, v_como, v_marca
     from termos t
     where string_to_array(t.termo, ' ') <@ string_to_array(n, ' ')
     order by cardinality(string_to_array(t.termo, ' ')) desc, length(t.termo) desc
@@ -213,13 +215,13 @@ begin
     -- Aproximado: precisa ser bem parecido E começar com a mesma letra
     -- (evita confundir rosuvastatina com sinvastatina, por exemplo)
     with termos as (
-      select tnl_normaliza(chave) as termo, chave from elenco_pfp
-      union all select tnl_normaliza(principio_ativo), chave from elenco_pfp
-      union all select tnl_normaliza(termo), chave from sinonimo
-      union all select tnl_normaliza(marca), chave from marca_principio
+      select tnl_normaliza(chave) as termo, chave, null::text as marca from elenco_pfp
+      union all select tnl_normaliza(principio_ativo), chave, null from elenco_pfp
+      union all select tnl_normaliza(termo), chave, null from sinonimo
+      union all select tnl_normaliza(marca), chave, marca from marca_principio
     )
-    select t.chave, 'aproximado', similarity(n, t.termo)
-      into v_chave, v_como, v_sim
+    select t.chave, 'aproximado', similarity(n, t.termo), t.marca
+      into v_chave, v_como, v_sim, v_marca
     from termos t
     where left(t.termo, 1) = left(n, 1)
       and similarity(n, t.termo) >= 0.5
@@ -264,9 +266,31 @@ begin
     'tipo', v_tipo,
     'concentracoes_oficiais', v_concs,
     'como_encontrado', v_como,
-    'similaridade', v_sim
+    'similaridade', v_sim,
+    'marca_reconhecida', v_marca
   );
 end;
+$$;
+
+-- Lista oficial agrupada por indicação, para responder "quais remédios são de graça?".
+-- p_filtro: '-' (tudo) ou um pedaço do nome da indicação, ex.: 'DIABETES', 'HIPERTENSAO'.
+create or replace function public.tnl_listar_elenco(p_filtro text)
+returns jsonb language sql stable
+set search_path = public, extensions as $$
+  with base as (
+    select indicacao, principio_ativo, tipo, min(id) as ordem,
+           coalesce(jsonb_agg(concentracao order by id) filter (where concentracao <> '-'), '[]'::jsonb) as concentracoes
+    from elenco_pfp
+    where coalesce(p_filtro, '-') = '-'
+       or tnl_normaliza(indicacao) like '%' || tnl_normaliza(p_filtro) || '%'
+    group by indicacao, principio_ativo, tipo
+  )
+  select coalesce(jsonb_agg(g order by g->>'indicacao'), '[]'::jsonb)
+  from (
+    select jsonb_build_object('indicacao', indicacao,
+             'itens', jsonb_agg(jsonb_build_object('nome', principio_ativo, 'tipo', tipo, 'concentracoes', concentracoes) order by ordem)) as g
+    from base group by indicacao
+  ) x
 $$;
 
 -- Versão para uma lista inteira: [{ordem, nome_escrito, concentracao}, ...]

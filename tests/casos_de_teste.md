@@ -61,6 +61,20 @@
 | 19 | novo (sessão nova do chat) | `oi` → `losartana 50` → `SIM` | (não consulta antes do SIM) | 1ª e 2ª mensagens: texto de consentimento (projeto voluntário, não é canal oficial, o que guarda, APAGAR). Só depois do `SIM`: "Oba! Manda a foto da receita…". |
 | 20 | qualquer | `APAGAR` | — | "Pronto, apaguei seus dados." No Supabase, a linha some das tabelas `usuario` e `conversa`. A próxima mensagem pede consentimento de novo. |
 
+## PDF, áudio, lista e marcas (WhatsApp)
+
+| # | Estado inicial | Mensagem da pessoa | Decisão do banco | Resposta esperada do Zé |
+|---|---|---|---|---|
+| 21 | aguardando_receita | PDF de uma receita | conforme os remédios do PDF | "Li isso aqui: …" e pede SIM, como numa foto. |
+| 22 | aguardando_receita | arquivo Word ou planilha | (não consulta) | "Não consegui abrir esse arquivo. Manda uma foto ou o PDF da receita…" |
+| 23 | aguardando_receita | áudio dizendo "losartana cinquenta miligramas" | losartana → `na_lista` | "Li isso aqui: …" e pede SIM. O áudio é transcrito pelo Groq e não é salvo. |
+| 24 | novo (nunca respondeu SIM) | áudio qualquer | (não consulta) | Texto de consentimento ("Escreva SIM…"). O áudio **não** vai para o Groq. |
+| 25 | aguardando_receita | áudio em silêncio | (não consulta) | "Não consegui entender o áudio. Tenta gravar de novo…" |
+| 26 | qualquer (depois do SIM) | `quais remédios são de graça?` | `tnl_listar_elenco('-')` | Lista oficial agrupada por doença (Pressão alta, Diabetes, …). O estado da conversa não muda. |
+| 27 | qualquer (depois do SIM) | `LISTA PRESSÃO` ou `tem remédio pra pressão?` | `tnl_listar_elenco('HIPERTENSAO')` | Só os remédios de pressão alta. |
+| 28 | aguardando_receita | `Glifage XR 500` | metformina, `marca_reconhecida` = Glifage XR | Confirmação: "Glifage XR 500 mg (é nome de marca; o genérico é cloridrato de metformina)". Depois do SIM, explica marca × genérico sem sugerir troca. |
+| 29 | qualquer | `posso trocar o Atrovent pelo genérico?` | (não consulta) | "Essa eu não posso responder: dose, efeito, troca…" |
+
 ## Conferências extras no Supabase (Table Editor)
 
 - `conversa.contexto` **nunca** deve conter: nome escrito na receita, nome de paciente/médico, CPF, texto da pessoa.

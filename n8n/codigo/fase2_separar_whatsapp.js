@@ -7,15 +7,24 @@ const valor = v.value || v; // o WhatsApp Trigger às vezes entrega dentro de "v
 const m = (valor.messages || [])[0];
 if (!m) return []; // não é mensagem nova (ex.: status de entrega)
 
+// Celulares do Brasil: às vezes a Meta entrega o número sem o 9 (55 + DDD + 8 dígitos).
+// Para responder, colocamos o 9 de volta; senão o envio é recusado.
+let para = String(m.from || '');
+if (/^55\d{10}$/.test(para) && /[6-9]/.test(para[4])) para = para.slice(0, 4) + '9' + para.slice(4);
+
 const tipo = m.type; // text | image | audio | document | ...
+const doc = m.document || {};
+const ehPdf = tipo === 'document' && (doc.mime_type || '').toLowerCase().startsWith('application/pdf');
 return [{
   json: {
-    de: m.from, // telefone: fica só na memória desta execução; no banco vira hash
+    para, // telefone: fica só na memória desta execução; no banco vira hash
+    id_bruto: 'wa:' + para,
     phone_number_id: (valor.metadata || {}).phone_number_id,
     tipo,
     texto: tipo === 'text' ? ((m.text || {}).body || '') : ((m.image || {}).caption || (m.document || {}).caption || ''),
-    // Só fotos são baixadas (áudio e documentos recebem resposta pronta, sem download)
-    media_id: (m.image || {}).id || null,
-    media_mime: (m.image || {}).mime_type || null,
+    // Fotos, PDFs e áudios são baixados (outros arquivos recebem resposta pronta, sem download)
+    media_id: (m.image || {}).id || (ehPdf ? doc.id : null) || (m.audio || {}).id || null,
+    media_mime: (m.image || {}).mime_type || (ehPdf ? doc.mime_type : null) || (m.audio || {}).mime_type || null,
+    eh_pdf: ehPdf,
   },
 }];

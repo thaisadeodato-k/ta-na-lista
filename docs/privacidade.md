@@ -20,8 +20,9 @@ Como a foto de uma receita e o nome de um remédio podem revelar informações s
 |---|---|---|
 | Seu número de WhatsApp | Saber em que passo a conversa está e responder você | **Não em formato legível.** Guardamos só um código (hash criptográfico com chave secreta) gerado a partir do número. O número em si só passa pela memória do sistema no momento de responder. |
 | Data do seu consentimento | Não pedir o consentimento de novo a cada conversa | Sim, junto com o código acima, até você pedir para apagar. |
-| Foto da receita ou nome do remédio que você escreve | Identificar o medicamento | **Não.** A foto e o texto são lidos e descartados. |
+| Foto ou PDF da receita, ou nome do remédio que você escreve | Identificar o medicamento | **Não.** A foto, o PDF e o texto são lidos e descartados. |
 | Medicamentos reconhecidos na lista oficial e a data da receita | Responder se o remédio é gratuito | Por no máximo **24 horas**, só como referência aos itens da lista oficial. Não guardamos o texto que você escreveu nem o nome do paciente ou do médico. |
+| Mensagem de voz (áudio) | Transformar a fala em texto, como se você tivesse escrito | **Não.** O áudio é transcrito e descartado. Só é transcrito depois que você respondeu SIM ao consentimento. |
 | CEP | Encontrar as farmácias mais próximas | **Não.** É usado só para calcular a localização. |
 | Estatísticas de uso | Saber se o projeto está ajudando (ex.: quantas consultas tiveram remédio na lista) | Sim, de forma **anônima**, sem ligação com nenhuma pessoa. |
 
@@ -34,7 +35,8 @@ Não lemos nem pedimos o seu CPF. Se você mandar por engano, ele não é guarda
 Para funcionar, o Tá na Lista usa serviços de terceiros, que tratam os dados apenas para executar a tarefa:
 
 - **WhatsApp / Meta**: entrega as mensagens entre você e o Zé.
-- **Anthropic (Claude)**: inteligência artificial que lê a foto da receita ou o texto para identificar o nome do remédio, e que redige a resposta do Zé. Ela não decide se o remédio é gratuito: quem decide é a consulta à lista oficial.
+- **Anthropic (Claude)**: inteligência artificial que lê a foto ou o PDF da receita, ou o texto para identificar o nome do remédio, e que redige a resposta do Zé. Ela não decide se o remédio é gratuito: quem decide é a consulta à lista oficial.
+- **Groq**: transforma as mensagens de voz em texto (transcrição). Recebe só o áudio, sem o seu número.
 - **Supabase**: banco de dados onde ficam a lista oficial e os dados descritos acima, em servidores em São Paulo.
 - **n8n**: plataforma que organiza a conversa.
 - **BrasilAPI**: transforma o CEP em localização.

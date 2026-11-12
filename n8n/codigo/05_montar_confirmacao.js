@@ -11,7 +11,9 @@ const semAcento = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLo
 const linhas = ext.meds.map((m) => {
   const v = resultados.find((x) => x.ordem === m.ordem) || {};
   let l = `${m.ordem}) ${m.nome_escrito}${m.concentracao ? ' ' + m.concentracao : ''}`;
-  if (v.principio_ativo && semAcento(v.principio_ativo) !== semAcento(m.nome_escrito)) {
+  if (v.marca_reconhecida && v.principio_ativo) {
+    l += ` (é nome de marca; o genérico é ${v.principio_ativo})`;
+  } else if (v.principio_ativo && semAcento(v.principio_ativo) !== semAcento(m.nome_escrito)) {
     l += ` (entendi como: ${v.principio_ativo})`;
   }
   if (m.confianca === 'baixa') l += ' (não tenho certeza dessa leitura)';
@@ -26,6 +28,7 @@ const itens = ext.meds.map((m) => {
     numero: m.ordem,
     situacao: v.status,
     remedio_na_lista: v.principio_ativo,
+    marca: v.marca_reconhecida || undefined, // nome da tabela de marcas (não é o texto escrito pela pessoa)
     tipo: v.tipo,
     concentracoes_na_lista: v.concentracoes_oficiais || [],
     concentracao_da_receita: m.concentracao,
@@ -40,6 +43,6 @@ return [{
     novo_estado: 'aguardando_confirmacao',
     novo_contexto: { itens, data_receita: ext.data_receita },
     evento: 'receita_lida',
-    detalhe: { via: d.imagem_mime ? 'foto' : 'texto', itens: itens.length },
+    detalhe: { via: d.imagem_mime === 'application/pdf' ? 'pdf' : (d.imagem_mime ? 'foto' : 'texto'), itens: itens.length },
   }),
 }];

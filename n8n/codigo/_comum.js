@@ -9,11 +9,11 @@ const MSG = {
     'Oi, eu sou o Zé da Farma! 👋 Eu vejo se o remédio da sua receita é de graça no Farmácia Popular e onde retirar.\n\n' +
     'Antes, um combinado rápido:\n' +
     '• Sou um projeto voluntário. NÃO sou canal oficial do governo.\n' +
-    '• A foto da receita é lida por uma inteligência artificial (Claude, da Anthropic) só pra achar o nome do remédio. Eu não guardo a foto, nem nome, nem CPF.\n' +
+    '• A foto da receita é lida por uma inteligência artificial (Claude, da Anthropic) só pra achar o nome do remédio. Áudio vira texto por outro serviço (Groq). Eu não guardo foto, áudio, nome nem CPF.\n' +
     '• Guardo só um código no lugar do seu número e em que passo a conversa está, por até 24 horas.\n' +
     '• Nunca peço senha nem dados de banco.\n' +
     '• Escreva APAGAR a qualquer hora e eu apago seus dados.\n\n' +
-    'Pode ser? Responda SIM pra continuar.',
+    'Pode ser? Escreva SIM pra continuar.',
   CONSENTIMENTO_NAO: 'Tudo bem! Não guardei nada. Se mudar de ideia, é só mandar um oi.',
   BOAS_VINDAS: 'Oba! Manda a foto da receita que eu vejo se tá na lista. Se preferir, escreve o nome do remédio.',
   PEDIR_RECEITA: 'Oi, eu sou o Zé! Manda a foto da receita que eu vejo se tá na lista. Também pode escrever o nome do remédio.',
@@ -28,9 +28,11 @@ const MSG = {
     'Atenção: eu nunca peço senha, cartão, Pix ou dados de banco. Não mande isso aqui. ' +
     'Se alguém pedir isso em nome do Farmácia Popular, é golpe.',
   NAO_PRECISA_CPF: 'Não precisa me mandar CPF nem documento, e eu não guardo esses dados. O CPF você mostra só lá na farmácia.',
-  AUDIO: 'Ainda não consigo ouvir áudio. Manda a foto da receita ou escreve o nome do remédio, por favor.',
-  IMAGEM_GRANDE: 'A foto ficou pesada demais pra mim. Tenta mandar de novo (pode ser um print), ou escreve o nome do remédio.',
-  IMAGEM_TIPO: 'Não consegui abrir esse arquivo. Manda uma foto (JPG ou PNG) ou escreve o nome do remédio.',
+  AUDIO: 'Não consegui entender o áudio. Tenta gravar de novo, falando com calma, ou manda a foto da receita, ou escreve o nome do remédio.',
+  IMAGEM_GRANDE: 'O arquivo ficou pesado demais pra mim. Tenta mandar uma foto ou um print da receita, ou escreve o nome do remédio.',
+  IMAGEM_TIPO: 'Não consegui abrir esse arquivo. Manda uma foto ou o PDF da receita, ou escreve o nome do remédio.',
+  DICA_LISTA: 'Quer ver os remédios que saem de graça no Farmácia Popular? Escreva LISTA. Pra ver só de uma doença, escreva por exemplo: LISTA PRESSÃO.',
+  LISTA_VAZIA: 'Não achei remédio dessa doença na lista do Farmácia Popular. Escreva LISTA pra ver tudo o que é de graça, ou manda a foto da receita.',
   NAO_LEGIVEL: 'Não consegui ler a receita direitinho. Tenta outra foto, com boa luz e bem de pertinho, ou escreve o nome do remédio.',
   ERRO_TECNICO: 'Ops, tive um probleminha agora. Tenta de novo daqui a pouco, ou escreve o nome do remédio.',
   CONFIRMACAO_NAO: 'Sem problema! Manda a foto de novo, bem de pertinho e com luz, ou escreve o nome certo do remédio.',
@@ -98,7 +100,7 @@ const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 // Resposta de reserva (sem IA) caso a redação do Claude falhe
 function modeloResultado(fatos) {
   const linhas = fatos.itens.map((i) => {
-    const nome = i.remedio_na_lista ? cap(i.remedio_na_lista) : `O remédio nº ${i.numero}`;
+    const nome = i.remedio_na_lista ? cap(i.remedio_na_lista) + (i.marca ? ` (genérico de ${i.marca})` : '') : `O remédio nº ${i.numero}`;
     const conc = i.concentracao_da_receita ? ' ' + i.concentracao_da_receita : '';
     switch (i.situacao) {
       case 'na_lista':
