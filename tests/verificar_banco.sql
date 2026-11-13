@@ -23,3 +23,22 @@ lateral (select public.verificar_medicamento(t.nome, t.conc) as r) v;
 
 -- Farmácias mais próximas da Av. Paulista (devem vir 3, da mais perto para a mais longe)
 select * from public.farmacias_proximas(-23.5614, -46.6559, 3);
+
+-- Conferência do banco depois das mudanças de nov/2026 (sugestões, botões).
+-- Todas as linhas devem mostrar ok = true. Só lê; não muda nada.
+select item, ok from (values
+  ('tabela sugestao existe',
+     to_regclass('public.sugestao') is not null),
+  ('conversa aceita o passo aguardando_sugestao',
+     exists (select 1 from pg_constraint where conname = 'conversa_estado_check'
+             and pg_get_constraintdef(oid) like '%aguardando_sugestao%')),
+  ('função de salvar guarda sugestões',
+     exists (select 1 from pg_proc where proname = 'tnl_salvar_conversa'
+             and prosrc like '%insert into sugestao%')),
+  ('métricas não têm texto de sugestão',
+     not exists (select 1 from public.metrica where evento = 'sugestao' and detalhe ? 'texto')),
+  ('busca por CEP com estado e bairro (5 argumentos)',
+     exists (select 1 from pg_proc where proname = 'tnl_farmacias_para_cep' and pronargs = 6)),
+  ('API pública não lê sugestões (RLS ligado)',
+     (select relrowsecurity from pg_class where oid = 'public.sugestao'::regclass))
+) as t(item, ok);

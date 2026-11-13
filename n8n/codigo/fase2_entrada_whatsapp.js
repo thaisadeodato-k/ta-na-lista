@@ -39,6 +39,7 @@ return [{
     texto,
     imagem_base64, imagem_mime, imagem_bytes,
     tem_audio, // true só quando o áudio não pôde ser entendido
+    via_audio: sep.tipo === 'audio' && !tem_audio, // o texto veio de um áudio (usado só para contar sugestões por áudio)
     outro_arquivo: !['text', 'image', 'audio'].includes(sep.tipo) && !sep.eh_pdf,
   },
 }];

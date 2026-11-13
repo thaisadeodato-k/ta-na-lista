@@ -25,6 +25,7 @@ Como a foto de uma receita e o nome de um remédio podem revelar informações s
 | Mensagem de voz (áudio) | Transformar a fala em texto, como se você tivesse escrito | **Não.** O áudio é transcrito e descartado. Só é transcrito depois que você respondeu SIM ao consentimento. |
 | CEP, cidade ou bairro que você informar | Encontrar as farmácias mais próximas | **Só enquanto a conversa precisa.** Se você disser o lugar antes da hora (por exemplo, junto com o nome do remédio), guardamos o CEP ou a cidade e o bairro **reconhecidos na lista oficial** até mostrar as farmácias — no máximo **24 horas**. Não guardamos o texto que você escreveu nem o seu endereço. |
 | Estatísticas de uso | Saber se o projeto está ajudando (ex.: quantas consultas tiveram remédio na lista) | Sim, de forma **anônima**, sem ligação com nenhuma pessoa. |
+| Sugestões e comentários sobre o serviço (escrevendo **SUGESTÃO**, ou comentando direto com o Zé, por texto ou áudio, ex.: "podia ter letra maior") e o perfil que você escolher (ex.: "uso pra mim", "sou da farmácia") | Melhorar o projeto com a participação de quem usa | Sim, **sem prazo**, mas de forma **anônima**: sem o seu número e sem o código dele, com a data só do dia. CPF, telefone e e-mail escritos no texto são trocados por "[removido]" antes de guardar. Por isso não é possível apagar uma sugestão específica pelo APAGAR: ninguém sabe de quem ela é. Não coloque nome ou dados de saúde de outras pessoas na sugestão. |
 
 **Nunca pedimos** senha, dados de cartão, Pix, dados bancários ou documentos. Se alguém pedir isso em nome do Tá na Lista ou do Farmácia Popular, é golpe.
 
@@ -52,6 +53,7 @@ Não vendemos, alugamos nem usamos seus dados para publicidade.
 - Se você nunca respondeu SIM, o código é apagado em até **24 horas**.
 - A plataforma que organiza a conversa (n8n) **não guarda** as conversas que deram certo. Quando algo dá **erro**, um registro técnico da execução (que pode conter a mensagem enviada) fica guardado só para corrigir a falha e é **apagado automaticamente em até 7 dias**.
 - As estatísticas anônimas podem ser mantidas para avaliar o projeto.
+- As sugestões anônimas ficam guardadas **sem prazo**, para formar o histórico de melhorias pedidas por quem usa.
 
 ## 5. Como apagar seus dados
 

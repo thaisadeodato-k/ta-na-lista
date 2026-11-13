@@ -99,8 +99,25 @@
 | 42 | aguardando_cep | `moro na vila mariana em sp` (sem cidade) | `cidade_nao_achada` | Pede a cidade (não chuta Mariana/MG). |
 | 43 | qualquer | `obrigado` | — | "De nada! 😊" |
 
+## Botões, menu, SOBRE e sugestões (só no WhatsApp; no chat de teste os botões aparecem como texto 🔘)
+
+| # | Estado inicial | Mensagem da pessoa | Resposta esperada do Zé |
+|---|---|---|---|
+| 44 | novo | `oi` | Boas-vindas curta + botões **✅ Sim, pode ser** / **❌ Agora não**. |
+| 45 | (depois do 44) | toque em **Sim, pode ser** | "Oba!" + botão **📋 Ver opções** (menu com receita, lista, pressão, diabetes, sugestão, sobre, apagar). |
+| 46 | qualquer | `MENU` | Menu **Ver opções**. |
+| 47 | qualquer | `LISTA` | Lista inteira e, numa 2ª mensagem, o menu **🔎 Escolher doença**. |
+| 48 | aguardando_confirmacao | toque em **✏️ Tá errado** | Pede a foto de novo ou o nome certo. |
+| 49 | qualquer | `SOBRE` | "Sobre o Tá na Lista", com Thaís, Jordean e João (LinkedIn) + botões. |
+| 50 | qualquer | `SUGESTÃO` → toque num perfil → `podia ter letra maior` | Pede o perfil (menu), pede a sugestão, agradece. Aparece 1 linha nova em `sugestao`. |
+| 51 | qualquer | `SUGESTÃO` → `meu cpf é 123.456.789-09, podia ser mais rápido` | Agradece. Em `sugestao`, o texto aparece com `[removido]` no lugar do CPF. |
+| 52 | aguardando_sugestao | `LISTA` e depois `losartana 50` | Mostra a lista e depois lê o remédio normalmente (não vira sugestão). |
+| 53 | qualquer | áudio "gostei muito, mas podia ter letra maior" (sem escrever SUGESTÃO) | "Obrigado pelo comentário!" e 1 linha nova em `sugestao` (perfil `nao_informado`, via `audio`). |
+| 54 | qualquer | `quem ganhou o jogo?` | "Eu só sei falar do Farmácia Popular" + botão **Ver opções**. |
+
 ## Conferências extras no Supabase (Table Editor)
 
 - `conversa.contexto` **nunca** deve conter: nome escrito na receita, nome de paciente/médico, CPF, texto da pessoa.
-- `metrica` só tem eventos e contagens, sem hash de usuário.
+- `metrica` só tem eventos e contagens, sem hash de usuário. Nos eventos `sugestao`, o `detalhe` tem só perfil e via, **nunca** o texto.
+- `sugestao` não tem número, hash nem hora (só o dia).
 - `usuario.usuario_hash` é um código longo (não dá para ver o número).

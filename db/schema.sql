@@ -87,7 +87,7 @@ alter table public.usuario add column if not exists visto_em timestamptz not nul
 create table if not exists public.conversa (
   usuario_hash   text primary key references public.usuario(usuario_hash) on delete cascade,
   estado         text not null default 'novo'
-                 check (estado in ('novo','aguardando_receita','aguardando_confirmacao','aguardando_cep','concluido')),
+                 check (estado in ('novo','aguardando_receita','aguardando_confirmacao','aguardando_cep','concluido','aguardando_sugestao')),
   contexto       jsonb not null default '{}'::jsonb,
   atualizado_em  timestamptz not null default now()
 );
@@ -110,6 +110,23 @@ create table if not exists public.metrica (
   criado_em  timestamptz not null default date_trunc('hour', now())
 );
 
+-- Sugestões (participação popular): guardadas SEM prazo, mas ANÔNIMAS.
+-- Sem número, sem código da pessoa; CPF/telefone/e-mail no texto viram [removido] no n8n; data só o dia.
+create table if not exists public.sugestao (
+  id         bigserial primary key,
+  criada_em  date not null default current_date,
+  perfil     text not null default 'nao_informado'
+             check (perfil in ('paciente', 'familia', 'farmacia', 'saude', 'nao_informado')),
+  texto      text not null check (length(texto) between 1 and 1000),
+  via        text not null default 'texto' check (via in ('texto', 'audio')),
+  -- Para o backlog (preenchido à mão no Supabase):
+  status     text not null default 'recebida'
+             check (status in ('recebida', 'em_analise', 'planejada', 'feita', 'nao_vamos_fazer')),
+  tema       text,
+  nota       text,
+  feita_em   date
+);
+
 -- Segurança: liga RLS em todas as tabelas SEM políticas.
 -- Resultado: a API pública do Supabase (chave "anon") não lê nem grava nada.
 -- O n8n conecta direto no Postgres com o usuário do banco, que não é afetado.
@@ -122,6 +139,7 @@ alter table public.usuario         enable row level security;
 alter table public.conversa        enable row level security;
 alter table public.lembrete        enable row level security;
 alter table public.metrica         enable row level security;
+alter table public.sugestao        enable row level security;
 
 -- =====================================================================
 -- 3) FUNÇÕES AUXILIARES DE TEXTO
@@ -628,6 +646,13 @@ begin
   else
     if p_acao = 'consentir' then
       update usuario set consentiu_em = now() where usuario_hash = p_hash;
+    end if;
+    -- Sugestão: vai para a tabela própria, sem nenhuma ligação com a pessoa
+    if p_acao = 'sugestao' and coalesce(btrim(p_detalhe->>'texto'), '') <> '' then
+      insert into sugestao (perfil, texto, via)
+      values (coalesce(p_detalhe->>'perfil', 'nao_informado'), left(btrim(p_detalhe->>'texto'), 1000),
+              coalesce(p_detalhe->>'via', 'texto'));
+      p_detalhe := p_detalhe - 'texto'; -- a métrica guarda só o perfil, nunca o texto
     end if;
     update usuario set visto_em = now() where usuario_hash = p_hash;
     insert into conversa (usuario_hash, estado, contexto, atualizado_em)

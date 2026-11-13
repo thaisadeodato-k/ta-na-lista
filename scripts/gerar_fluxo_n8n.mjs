@@ -282,7 +282,8 @@ function fase2() {
     },
     code('Entrada → formato padrão', 'fase2_entrada_whatsapp.js', [260, 300]),
     ...m.nodes,
-    nota('## 📤 SAÍDA (WhatsApp)\nResponde pelo mesmo número que recebeu a mensagem. O telefone da pessoa só existe na memória da execução; no banco ele é sempre hash.', [2580, 120], 320, 400, 4),
+    nota('## 📤 SAÍDA (WhatsApp)\nResponde pelo mesmo número que recebeu a mensagem, com botões quando houver. O telefone da pessoa só existe na memória da execução; no banco ele é sempre hash.', [2580, 120], 520, 400, 4),
+    code('Montar envio WhatsApp', 'fase2_montar_envio.js', [2640, 300]),
     {
       parameters: {
         method: 'POST',
@@ -291,10 +292,11 @@ function fase2() {
         genericAuthType: 'httpHeaderAuth',
         sendBody: true,
         specifyBody: 'json',
-        jsonBody: "={{ JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to: $('Entrada → formato padrão').first().json.para, type: 'text', text: { preview_url: false, body: $('Juntar resposta').first().json.resposta } }) }}",
-        options: { timeout: 30000 },
+        jsonBody: '={{ JSON.stringify($json.corpo) }}',
+        // Um envio por vez, na ordem (texto longo primeiro, botões depois)
+        options: { timeout: 30000, batching: { batch: { batchSize: 1, batchInterval: 600 } } },
       },
-      id: id(), name: 'Saída → WhatsApp', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [2660, 300],
+      id: id(), name: 'Saída → WhatsApp', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [2880, 300],
       credentials: CRED_WA_TOKEN,
     },
   ];
@@ -310,7 +312,8 @@ function fase2() {
     'Preparar áudio': liga('Transcrever áudio (Groq)'),
     'Transcrever áudio (Groq)': liga('Entrada → formato padrão'),
     ...m.connections,
-    'Salvar conversa': liga('Saída → WhatsApp'),
+    'Salvar conversa': liga('Montar envio WhatsApp'),
+    'Montar envio WhatsApp': liga('Saída → WhatsApp'),
   };
   return { name: 'Tá na Lista — WhatsApp', nodes, connections, settings: CONFIG_LGPD };
 }

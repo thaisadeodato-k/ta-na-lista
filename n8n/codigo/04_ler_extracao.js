@@ -23,7 +23,20 @@ const local = typeof ext.local === 'string' ? ext.local.trim() : '';
 if (ext.assunto === 'local' || (local && !(ext.medicamentos || []).length)) {
   return [{ json: { consultar: false, so_local: true, lista_b64: b64([]), local_b64: txt64(local) } }];
 }
-if (ext.assunto === 'fora_do_escopo') return parar({ resposta: MSG.FORA_ESCOPO, evento: 'fora_escopo' });
+// Comentário ou sugestão sobre o serviço, mesmo sem escrever SUGESTÃO: guarda como sugestão (anônima)
+if (ext.assunto === 'opiniao' && !d.imagem_base64) {
+  const texto = semDadosPessoais(d.texto);
+  if (texto) {
+    let viaAudio = false;
+    try { viaAudio = !!$('Entrada → formato padrão').first().json.via_audio; } catch (e) { viaAudio = false; }
+    return parar({
+      resposta: MSG.OPINIAO_OBRIGADO, acao: 'sugestao', evento: 'sugestao',
+      detalhe: { perfil: 'nao_informado', via: viaAudio ? 'audio' : 'texto', texto, espontanea: true },
+      botoes: [BT.OUTRA_RECEITA, BT.MENU],
+    });
+  }
+}
+if (ext.assunto === 'fora_do_escopo' || ext.assunto === 'opiniao') return parar({ resposta: MSG.FORA_ESCOPO, evento: 'fora_escopo', lista: MENU_PRINCIPAL });
 
 const meds = (ext.medicamentos || [])
   .filter((m) => m && typeof m.nome_escrito === 'string' && m.nome_escrito.trim())

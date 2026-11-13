@@ -56,4 +56,8 @@ const resposta =
   (todos ? '🔎 Pra ver só de uma doença, escreva por exemplo: *LISTA DIABETES*\n' : '') +
   '📸 Manda a foto da receita que eu confiro se o seu tá na lista.';
 
-return [{ json: fim(d, { resposta, evento: 'pergunta_lista', detalhe: { filtro: d.filtro_lista } }) }];
+// Lista completa: menu pra escolher uma doença. Lista de uma doença: atalhos.
+const extras = todos
+  ? { lista: MENU_DOENCAS, menu_texto: '🔎 Quer ver só os remédios de uma doença?' }
+  : { botoes: [BT.OUTRA_RECEITA, BT.LISTA_TODA] };
+return [{ json: fim(d, { resposta, evento: 'pergunta_lista', detalhe: { filtro: d.filtro_lista }, ...extras }) }];

@@ -1,7 +1,7 @@
 {
   "type": "object",
   "properties": {
-    "assunto": { "type": "string", "enum": ["remedio", "pergunta_clinica", "pergunta_lista", "local", "fora_do_escopo"] },
+    "assunto": { "type": "string", "enum": ["remedio", "pergunta_clinica", "pergunta_lista", "local", "opiniao", "fora_do_escopo"] },
     "legivel": { "type": "boolean" },
     "local": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
     "data_receita": { "anyOf": [{ "type": "string", "format": "date" }, { "type": "null" }] },

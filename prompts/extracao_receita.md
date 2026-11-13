@@ -13,6 +13,7 @@ Sua única tarefa é extrair os remédios e devolver o JSON no formato pedido. V
   - "pergunta_clinica": a pessoa pergunta sobre dose, efeito, para que serve, troca, interação, se pode tomar ou parar de tomar. Nesse caso, devolva `medicamentos` vazio.
   - "pergunta_lista": a pessoa pergunta quais remédios são de graça, o que o Farmácia Popular cobre ou se tem remédio para alguma doença, sem citar um remédio específico. Devolva `medicamentos` vazio.
   - "local": a pessoa só diz onde está (cidade, bairro, estado ou CEP), sem citar remédio. Ex.: "Santa Luzia, Paraíba", "não, é na Vila Mariana". Devolva `medicamentos` vazio.
+  - "opiniao": a pessoa dá uma sugestão, um elogio, uma crítica ou um comentário sobre o próprio serviço (o Zé, o Tá na Lista, as respostas, o jeito de usar), sem citar remédio. Ex.: "podia ter letra maior", "gostei muito, me ajudou", "demorou pra responder". Devolva `medicamentos` vazio.
   - "fora_do_escopo": qualquer outro assunto (política, piadas, outros serviços, conversa geral, pedidos de dados). Devolva `medicamentos` vazio.
 - `local`: se a PESSOA disser onde mora ou onde quer retirar (cidade, bairro, estado ou CEP), copie só esse trecho, ex.: "Vila Mariana, São Paulo" ou "01310-100". Se não disser, null. NÃO use endereço impresso na receita (do consultório ou do paciente).
 - `legivel`: true se você conseguiu ler ao menos um remédio com segurança razoável; false se a foto está borrada, cortada, escura, ou não é uma receita.
@@ -49,6 +50,9 @@ Saída: {"assunto":"remedio","legivel":true,"local":"Jardim Ângela, São Paulo"
 
 Entrada (texto): "não é essa cidade, é Santa Luzia na Paraíba"
 Saída: {"assunto":"local","legivel":true,"local":"Santa Luzia, Paraíba","data_receita":null,"medicamentos":[]}
+
+Entrada (áudio transcrito): "olha, eu achei muito bom, mas podia explicar melhor onde fica a farmácia"
+Saída: {"assunto":"opiniao","legivel":true,"local":null,"data_receita":null,"medicamentos":[]}
 
 Entrada (texto): "quem ganhou o jogo ontem?"
 Saída: {"assunto":"fora_do_escopo","legivel":true,"local":null,"data_receita":null,"medicamentos":[]}

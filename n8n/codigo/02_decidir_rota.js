@@ -91,16 +91,73 @@ if (t === 'APAGAR' || t === 'APAGAR MEUS DADOS') {
   return fixa({ resposta: MSG.APAGADO, acao: 'apagar', novo_estado: 'novo', novo_contexto: {}, evento: 'apagou' });
 }
 
+// 1b) SOBRE: quem fez o projeto, vale em qualquer estado e não muda nada
+if (['SOBRE', 'QUEM FEZ', 'QUEM CRIOU', 'QUEM FEZ VOCE', 'QUEM TE FEZ', 'QUEM TE CRIOU', 'CRIADORA', 'CRIADOR', 'CONTATO'].includes(t)) {
+  // Se estava no meio de uma sugestão, sai dela (a próxima mensagem não vira sugestão)
+  const saiu = d.estado_atual === 'aguardando_sugestao' ? { novo_estado: 'aguardando_receita', novo_contexto: {} } : {};
+  return fixa({ resposta: MSG.SOBRE, evento: 'sobre', botoes: [BT.OUTRA_RECEITA, BT.MENU], ...saiu });
+}
+
 // 2) Consentimento: usuário novo só segue depois de responder SIM
 if (d.estado_atual === 'novo') {
   const pedido = d.contexto.consentimento_pedido === true;
   if (pedido && (t === 'SIM' || t === 'S' || t.startsWith('SIM '))) {
-    return fixa({ resposta: MSG.BOAS_VINDAS, acao: 'consentir', novo_estado: 'aguardando_receita', novo_contexto: {}, evento: 'consentiu' });
+    return fixa({ resposta: MSG.BOAS_VINDAS, acao: 'consentir', novo_estado: 'aguardando_receita', novo_contexto: {}, evento: 'consentiu', lista: MENU_PRINCIPAL });
   }
   if (pedido && (t === 'NAO' || t === 'N' || t.startsWith('NAO '))) {
     return fixa({ resposta: MSG.CONSENTIMENTO_NAO, acao: 'apagar', novo_estado: 'novo', novo_contexto: {}, evento: 'recusou_consentimento' });
   }
-  return fixa({ resposta: MSG.CONSENTIMENTO, novo_estado: 'novo', novo_contexto: { consentimento_pedido: true }, evento: pedido ? '-' : 'novo_usuario' });
+  return fixa({ resposta: MSG.CONSENTIMENTO, novo_estado: 'novo', novo_contexto: { consentimento_pedido: true }, evento: pedido ? '-' : 'novo_usuario', botoes: [BT.CONSENTIR, BT.RECUSAR] });
+}
+
+// 2b) SUGESTÕES (participação popular). Vem antes das proteções porque a sugestão é texto livre
+//     (ex.: "seria bom explicar a dose" não deve cair na resposta de dose).
+//     Guardada SEM número e sem o código da pessoa; dados pessoais no texto viram [removido].
+const RE_PEDE_SUGESTAO = /^(SUGESTAO|SUGESTOES|DAR SUGESTAO|DAR UMA SUGESTAO|QUERO DAR UMA SUGESTAO|TENHO UMA SUGESTAO|IDEIA|TENHO UMA IDEIA|RECLAMACAO|RECLAMAR|ELOGIO|OPINIAO|FEEDBACK)$/;
+const SAIR_DA_SUGESTAO = ['MENU', 'OPCOES', 'VER OPCOES', 'RECOMECAR', 'CANCELAR', 'SAIR', 'NAO', 'N', 'DESISTI', 'DEIXA PRA LA', 'LISTA', 'OUTRA RECEITA'];
+// Quem escreve o perfil em vez de tocar no menu ("sou farmacêutica")
+function perfilEscrito(txt) {
+  if (txt.split(' ').length > 6) return null;
+  if (/FARMAC|BALCON/.test(txt)) return 'farmacia';
+  if (/MEDIC|ENFERM|AGENTE|SAUDE|UBS|POSTO/.test(txt)) return 'saude';
+  if (/MAE|PAI|AVO|FILH|ESPOS|MARIDO|MULHER|FAMILI|PARENTE|AJUDO|CUIDO/.test(txt)) return 'familia';
+  if (/PRA MIM|PARA MIM|EU TOMO|EU USO|PACIENTE|APOSENTAD|IDOS/.test(txt)) return 'paciente';
+  if (/PREFIRO NAO|NAO QUERO DIZER/.test(txt)) return 'nao_informado';
+  return null;
+}
+if (RE_PEDE_SUGESTAO.test(t)) {
+  return fixa({ resposta: MSG.SUGESTAO_PERFIL, novo_estado: 'aguardando_sugestao', novo_contexto: {}, evento: 'sugestao_iniciada', lista: MENU_PERFIL });
+}
+// Toque num perfil do menu de sugestão, mesmo se o passo não foi salvo (ou a conversa expirou): segue a sugestão
+if (PERFIS[t] && d.estado_atual !== 'aguardando_sugestao') {
+  return fixa({ resposta: MSG.SUGESTAO_PEDIR, novo_estado: 'aguardando_sugestao', novo_contexto: { perfil: PERFIS[t] }, evento: '-' });
+}
+if (d.estado_atual === 'aguardando_sugestao' && !temImagem && !ent.tem_audio && !ent.outro_arquivo) {
+  const ctx = d.contexto || {};
+  if (SAIR_DA_SUGESTAO.includes(t)) {
+    if (['NAO', 'N', 'DESISTI', 'DEIXA PRA LA', 'CANCELAR', 'SAIR'].includes(t)) {
+      return fixa({ resposta: MSG.SUGESTAO_CANCELADA, novo_estado: 'aguardando_receita', novo_contexto: {}, evento: 'sugestao_cancelada' });
+    }
+    // outros comandos (MENU, LISTA...) seguem o caminho normal mais abaixo, já fora da sugestão
+    d.estado_atual = 'aguardando_receita';
+    d.contexto = {};
+  } else {
+    // 1º passo: o perfil (tocado no menu ou escrito)
+    const perfil = PERFIS[t] || (!ctx.perfil ? perfilEscrito(t) : null);
+    if (perfil && !ctx.perfil) {
+      return fixa({ resposta: MSG.SUGESTAO_PEDIR, novo_contexto: { perfil }, evento: '-' });
+    }
+    // 2º passo: a sugestão em si
+    const texto = semDadosPessoais(d.texto);
+    if (!texto || t.length < 4 || ehSaudacao || ehSim || PERFIS[t]) {
+      return fixa({ resposta: ctx.perfil ? MSG.SUGESTAO_CURTA : MSG.SUGESTAO_PEDIR, evento: '-' });
+    }
+    return fixa({
+      resposta: MSG.SUGESTAO_OBRIGADO, acao: 'sugestao', novo_estado: 'aguardando_receita', novo_contexto: {},
+      evento: 'sugestao', detalhe: { perfil: ctx.perfil || 'nao_informado', via: ent.via_audio ? 'audio' : 'texto', texto },
+      botoes: [BT.OUTRA_RECEITA, BT.MENU],
+    });
+  }
 }
 
 // 3) Proteções (não mudam o estado)
@@ -108,13 +165,21 @@ if (RE_SENSIVEL.test(t)) return fixa({ resposta: MSG.NUNCA_PEDIMOS, evento: 'ale
 if (RE_CPF.test(d.texto)) return fixa({ resposta: MSG.NAO_PRECISA_CPF, evento: 'alerta_cpf' });
 if (RE_CLINICA.test(t)) return fixa({ resposta: MSG.FORA_CLINICO, evento: 'fora_clinico' });
 if (!temImagem && RE_LISTA.test(t)) return seguir('lista', { filtro_lista: filtroLista() }); // não muda o estado
-if (['RECOMECAR', 'CANCELAR', 'MENU', 'SAIR'].includes(t)) {
+if (['RECOMECAR', 'CANCELAR', 'SAIR'].includes(t)) {
   return fixa({ resposta: MSG.RECOMECAR, novo_estado: 'aguardando_receita', novo_contexto: {}, evento: 'recomecou' });
+}
+if (['MENU', 'OPCOES', 'VER OPCOES'].includes(t)) {
+  return fixa({ resposta: MSG.MENU, novo_estado: 'aguardando_receita', novo_contexto: {}, evento: 'menu', lista: MENU_PRINCIPAL });
+}
+// Botão "Outra receita": pede a próxima receita (o lugar já dito continua valendo)
+if (['OUTRA RECEITA', 'NOVA RECEITA', 'MANDAR RECEITA', 'MANDAR UMA RECEITA'].includes(t)) {
+  const local = d.contexto.local ? { local: d.contexto.local } : {};
+  return fixa({ resposta: MSG.OUTRA_RECEITA, novo_estado: 'aguardando_receita', novo_contexto: local, evento: 'outra_receita' });
 }
 { const x = checarArquivo(); if (x) return x; }
 // Agradecimento: responde com carinho e não muda nada
 if (!temImagem && /^(MUITO )?(OBRIGAD[OA]|BRIGAD[OA]|VALEU|GRATO|GRATA|DEUS TE PAGUE|DEUS LHE PAGUE)\b/.test(t) && t.split(' ').length <= 6) {
-  return fixa({ resposta: MSG.DE_NADA, evento: 'agradeceu' });
+  return fixa({ resposta: MSG.DE_NADA, evento: 'agradeceu', botoes: [BT.OUTRA_RECEITA, BT.SUGESTAO, BT.SOBRE] });
 }
 
 // 4) Cada estado
@@ -131,7 +196,7 @@ switch (d.estado_atual) {
       return fixa({ resposta: MSG.CONFIRMACAO_NAO, novo_estado: 'aguardando_receita', novo_contexto: local, evento: 'confirmacao_nao' });
     }
     if (temImagem || (t && !ehSaudacao)) return seguir('extrair'); // correção: lê de novo
-    return fixa({ resposta: MSG.CONFIRMAR_DE_NOVO });
+    return fixa({ resposta: MSG.CONFIRMAR_DE_NOVO, botoes: [BT.TA_CERTO, BT.TA_ERRADO] });
   }
 
   case 'aguardando_cep': {
@@ -167,7 +232,7 @@ switch (d.estado_atual) {
       // Sem pista clara: o Claude decide se é um remédio novo ou um lugar
     }
     if (!t || ehSaudacao || ehSim || ehNao) {
-      return fixa({ resposta: d.aviso + MSG.PEDIR_RECEITA, novo_estado: 'aguardando_receita', novo_contexto: {} });
+      return fixa({ resposta: d.aviso + MSG.PEDIR_RECEITA, novo_estado: 'aguardando_receita', novo_contexto: {}, lista: MENU_PRINCIPAL });
     }
     return seguir('extrair');
   }

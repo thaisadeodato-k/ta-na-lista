@@ -27,6 +27,11 @@ if (pedirCep) {
 }
 texto += '\n\n' + proximo;
 
+// Botões: ver as farmácias do lugar já dito, ou seguir em frente
+const botoes = pedirCep
+  ? (local ? [BT.VER_FARMACIAS, BT.OUTRO_LUGAR] : [BT.SEM_FARMACIA])
+  : [BT.OUTRA_RECEITA, BT.MENU];
+
 const conta = (s) => fatos.itens.filter((i) => i.situacao === s).length;
 return [{
   json: fim(d, {
@@ -34,6 +39,7 @@ return [{
     novo_estado: pedirCep ? 'aguardando_cep' : 'concluido',
     novo_contexto: pedirCep ? { tem_insumo: prep.tem_insumo, ...(local ? { local } : {}) } : {},
     evento: 'resultado',
+    botoes,
     detalhe: {
       na_lista: conta('na_lista'),
       na_lista_sem_concentracao: conta('na_lista_sem_concentracao'),

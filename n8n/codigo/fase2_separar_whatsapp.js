@@ -12,7 +12,10 @@ if (!m) return []; // não é mensagem nova (ex.: status de entrega)
 let para = String(m.from || '');
 if (/^55\d{10}$/.test(para) && /[6-9]/.test(para[4])) para = para.slice(0, 4) + '9' + para.slice(4);
 
-const tipo = m.type; // text | image | audio | document | ...
+// Toque num botão ou numa opção do menu: vira texto, como se a pessoa tivesse escrito o comando
+const it = m.interactive || {};
+const toque = (it.button_reply || it.list_reply || {}).id || (m.button || {}).payload || (m.button || {}).text || null;
+const tipo = toque ? 'text' : m.type; // text | image | audio | document | ...
 const doc = m.document || {};
 const ehPdf = tipo === 'document' && (doc.mime_type || '').toLowerCase().startsWith('application/pdf');
 return [{
@@ -21,7 +24,7 @@ return [{
     id_bruto: 'wa:' + para,
     phone_number_id: (valor.metadata || {}).phone_number_id,
     tipo,
-    texto: tipo === 'text' ? ((m.text || {}).body || '') : ((m.image || {}).caption || (m.document || {}).caption || ''),
+    texto: toque ? String(toque).slice(0, 200) : tipo === 'text' ? ((m.text || {}).body || '') : ((m.image || {}).caption || (m.document || {}).caption || ''),
     // Fotos, PDFs e áudios são baixados (outros arquivos recebem resposta pronta, sem download)
     media_id: (m.image || {}).id || (ehPdf ? doc.id : null) || (m.audio || {}).id || null,
     media_mime: (m.image || {}).mime_type || (ehPdf ? doc.mime_type : null) || (m.audio || {}).mime_type || null,

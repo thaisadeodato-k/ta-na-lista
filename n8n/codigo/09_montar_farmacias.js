@@ -29,6 +29,7 @@ return [{
     novo_estado: 'concluido',
     novo_contexto: contextoPosFarmacias(d), // permite corrigir o lugar sem recomeçar
     evento: 'farmacias',
+    botoes: BOTOES_POS_FARMACIAS,
     detalhe: { modo: r.modo, encontradas: out.encontradas, municipio: titulo(municipio) || null, uf: uf || null, via: porCidade ? 'cidade' : 'cep' },
   }),
 }];

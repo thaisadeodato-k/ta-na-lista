@@ -21,6 +21,7 @@ if (ext.so_local) {
     return [{ json: fim(d, {
       resposta: `📍 Procuro farmácias perto do CEP *${cepDito.replace(/(\d{5})(\d{3})/, '$1-$2')}*?\n\n✅ Responda *SIM*`,
       novo_estado: 'aguardando_cep', novo_contexto: { ...ctx, local }, evento: 'local_informado',
+      botoes: [BT.SIM, BT.OUTRO_LUGAR],
     }) }];
   }
   // Ainda falta a receita: anota o lugar e segue de onde estava
@@ -34,6 +35,7 @@ if (ext.so_local) {
     return [{ json: fim(d, {
       resposta: `📍 Anotei: *${localTexto(local)}*\n\n${MSG.CONFIRMAR_DE_NOVO}`,
       novo_contexto: { ...ctx, local }, evento: 'local_informado',
+      botoes: [BT.TA_CERTO, BT.TA_ERRADO],
     }) }];
   }
   // Depois do resultado ou das farmácias: mostra as farmácias do lugar novo (sem recomeçar)
@@ -41,6 +43,7 @@ if (ext.so_local) {
   return [{ json: fim(d, {
     resposta: out.resposta, novo_estado: 'concluido', novo_contexto: contextoPosFarmacias(d), evento: 'farmacias',
     detalhe: { modo: rLocal.modo, encontradas: out.encontradas, municipio: local.cidade, uf: local.uf, via: 'correcao_local' },
+    botoes: BOTOES_POS_FARMACIAS,
   }) }];
 }
 
@@ -94,6 +97,7 @@ return [{
     novo_estado: 'aguardando_confirmacao',
     novo_contexto: { itens, data_receita: ext.data_receita, ...(localFinal ? { local: localFinal } : {}) },
     evento: 'receita_lida',
+    botoes: [BT.TA_CERTO, BT.TA_ERRADO],
     detalhe: { via: d.imagem_mime === 'application/pdf' ? 'pdf' : (d.imagem_mime ? 'foto' : 'texto'), itens: itens.length, com_local: !!localFinal },
   }),
 }];
