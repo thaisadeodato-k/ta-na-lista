@@ -86,9 +86,37 @@ function checarArquivo() {
   return null;
 }
 
-// 1) APAGAR vale em qualquer estado
-if (t === 'APAGAR' || t === 'APAGAR MEUS DADOS') {
+// 1) APAGAR vale em qualquer estado. Aceita o jeito que a pessoa fala ou escreve:
+//    "apaga meus dados", "pode apagar tudo", "quero excluir minha conversa", "deleta"...
+//    Só vale quando o pedido ABRE a mensagem (uma sugestão como "seria bom poder apagar
+//    os dados" não apaga nada). "Esquece" e "limpa" sozinhos não contam: precisam do "dados/tudo".
+const PREFIXO_APAGAR = '^(?:(?:EU|ZE|OI|OLA|POR FAVOR|PFV|PF|QUERO|QUERIA|GOSTARIA DE|PODE|PODERIA|QUE|VOCE|VC|ME AJUDA A|SO)\\s+)*';
+const OBJETO_APAGAR = '\\b(DADOS?|TUDO|CONVERSAS?|HISTORICO|INFORMAC\\w*|CADASTRO|NUMERO|REGISTROS?|MENSAGENS?)\\b';
+const RE_APAGAR_SO = new RegExp(PREFIXO_APAGAR + '(APAGAR|APAGA|APAGUE|APAGUEM|EXCLUIR|EXCLUI|EXCLUA|DELETAR|DELETA|DELETE|REMOVER|REMOVE|REMOVA)(\\s+(POR FAVOR|PFV|PF|AGORA|JA))*$');
+const RE_APAGAR_COM_OBJETO = new RegExp(PREFIXO_APAGAR + '(APAGAR|APAGA|APAGUE|APAGUEM|EXCLUIR|EXCLUI|EXCLUA|DELETAR|DELETA|DELETE|REMOVER|REMOVE|REMOVA|LIMPAR|LIMPA|LIMPE|ESQUECER|ESQUECE|ESQUECA)\\b.*' + OBJETO_APAGAR);
+const pedeApagar = t.split(' ').length <= 12 && (RE_APAGAR_SO.test(t) || RE_APAGAR_COM_OBJETO.test(t));
+// Pergunta ("como apago meus dados?", "dá pra excluir minha conversa?")
+const perguntaApagar = t.split(' ').length <= 14 && /^(COMO|TEM COMO|DA PRA|DA PARA|POSSO|EU POSSO|E POSSIVEL|COMO FACO PRA|COMO FACO PARA)\b.*\b(APAG|EXCLU|DELET|REMOV)/.test(t);
+
+// Apagar só depois de a pessoa CONFIRMAR. O pedido fica marcado no contexto (sem mudar o estado)
+// e vale só para a mensagem seguinte: se ela falar de outra coisa, o pedido é esquecido.
+const apagarPedido = d.contexto.apagar_pedido === true;
+if (apagarPedido) {
+  delete d.contexto.apagar_pedido;
+  d.contexto = { ...d.contexto };
+}
+if (t === 'SIM APAGAR' || (apagarPedido && ehSim)) {
   return fixa({ resposta: MSG.APAGADO, acao: 'apagar', novo_estado: 'novo', novo_contexto: {}, evento: 'apagou' });
+}
+if (apagarPedido && (ehNao || t === 'NAO APAGAR')) {
+  return fixa({ resposta: MSG.APAGAR_CANCELADO, evento: 'apagar_cancelado', botoes: [BT.OUTRA_RECEITA, BT.MENU] });
+}
+if (t === 'NAO APAGAR') { // tocou no botão de uma pergunta antiga
+  return fixa({ resposta: MSG.APAGAR_CANCELADO, evento: '-', botoes: [BT.OUTRA_RECEITA, BT.MENU] });
+}
+if (pedeApagar || perguntaApagar) {
+  return fixa({ resposta: MSG.APAGAR_CONFIRMA, novo_contexto: { ...d.contexto, apagar_pedido: true }, evento: 'apagar_pedido',
+    botoes: [BT.APAGAR_SIM, BT.APAGAR_NAO] });
 }
 
 // 1b) SOBRE: quem fez o projeto, vale em qualquer estado e não muda nada

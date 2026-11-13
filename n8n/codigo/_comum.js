@@ -21,9 +21,17 @@ const MSG = {
   CONSENTIMENTO_NAO: 'Tudo bem! Não guardei nada. 👍\nSe mudar de ideia, é só mandar um *oi*.',
   BOAS_VINDAS: 'Oba! 🎉 Vamos lá:\n\n' + COMO_MANDAR + '\n\nQue eu vejo se tá na lista.\n\n💡 _Quer ver tudo o que é de graça? Escreva_ *LISTA*.',
   PEDIR_RECEITA: 'Oi, eu sou o *Zé da Farma*! 👋\n\n' + COMO_MANDAR + '\n\nQue eu vejo se tá na lista.',
-  APAGADO: '🗑️ Pronto, *apaguei seus dados*.\nSe quiser usar de novo, é só mandar um *oi*.',
+  APAGADO: '🗑️ Pronto, *seus dados foram apagados* do nosso banco de dados.\n\n' +
+    'Apaguei tudo o que estava ligado ao seu número: a conversa, os remédios e o lugar que você mandou.\n\n' +
+    'Se quiser usar de novo, é só mandar um *oi*. 💚',
   RECOMECAR: '🔄 Beleza, vamos começar de novo.\n\n' + COMO_MANDAR,
   OUTRA_RECEITA: '📋 Pode mandar a receita:\n\n' + COMO_MANDAR,
+  APAGAR_CONFIRMA:
+    '🗑️ *Quer mesmo apagar seus dados?*\n\n' +
+    'Vou apagar do banco de dados tudo o que está ligado ao seu número: a conversa, os remédios e o lugar que você mandou.\n\n' +
+    '⚠️ _Não dá pra desfazer._\n\n' +
+    'Toque em *Sim, apagar* ou escreva *SIM*.',
+  APAGAR_CANCELADO: '👍 Tudo bem, *não apaguei nada*.\nPode continuar de onde parou.',
   MENU: '📋 *O que você quer fazer?*\nToque em *Ver opções* 👇\n\n_Ou, se preferir, é só mandar a receita._',
   EXPIROU: '⏰ _Faz mais de um dia que a gente conversou, então comecei do zero._',
   FORA_CLINICO:
@@ -121,6 +129,8 @@ const BT = {
   SOBRE: { id: 'SOBRE', title: '💬 Sobre o projeto' },
   SUGESTAO: { id: 'SUGESTAO', title: '💡 Dar sugestão' },
   MENU: { id: 'MENU', title: '📋 Menu' },
+  APAGAR_SIM: { id: 'SIM APAGAR', title: '🗑️ Sim, apagar' },
+  APAGAR_NAO: { id: 'NAO APAGAR', title: '↩️ Não, manter' },
 };
 const MENU_PRINCIPAL = {
   botao: '📋 Ver opções',
