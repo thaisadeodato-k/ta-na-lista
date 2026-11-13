@@ -39,6 +39,8 @@ select item, ok from (values
      not exists (select 1 from public.metrica where evento = 'sugestao' and detalhe ? 'texto')),
   ('busca por CEP com estado e bairro (5 argumentos)',
      exists (select 1 from pg_proc where proname = 'tnl_farmacias_para_cep' and pronargs = 6)),
+  ('sugestão guarda o estado (uf)',
+     exists (select 1 from pg_proc where proname = 'tnl_salvar_conversa' and prosrc like '%uf_fonte%')),
   ('API pública não lê sugestões (RLS ligado)',
      (select relrowsecurity from pg_class where oid = 'public.sugestao'::regclass))
 ) as t(item, ok);

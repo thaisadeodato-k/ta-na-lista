@@ -154,11 +154,11 @@ function perfilEscrito(txt) {
   return null;
 }
 if (RE_PEDE_SUGESTAO.test(t)) {
-  return fixa({ resposta: MSG.SUGESTAO_PERFIL, novo_estado: 'aguardando_sugestao', novo_contexto: {}, evento: 'sugestao_iniciada', lista: MENU_PERFIL });
+  return fixa({ resposta: MSG.SUGESTAO_PERFIL, novo_estado: 'aguardando_sugestao', novo_contexto: ufLocalCtx(d.contexto), evento: 'sugestao_iniciada', lista: MENU_PERFIL });
 }
 // Toque num perfil do menu de sugestão, mesmo se o passo não foi salvo (ou a conversa expirou): segue a sugestão
 if (PERFIS[t] && d.estado_atual !== 'aguardando_sugestao') {
-  return fixa({ resposta: MSG.SUGESTAO_PEDIR, novo_estado: 'aguardando_sugestao', novo_contexto: { perfil: PERFIS[t] }, evento: '-' });
+  return fixa({ resposta: MSG.SUGESTAO_PEDIR, novo_estado: 'aguardando_sugestao', novo_contexto: { ...ufLocalCtx(d.contexto), perfil: PERFIS[t] }, evento: '-' });
 }
 if (d.estado_atual === 'aguardando_sugestao' && !temImagem && !ent.tem_audio && !ent.outro_arquivo) {
   const ctx = d.contexto || {};
@@ -173,7 +173,7 @@ if (d.estado_atual === 'aguardando_sugestao' && !temImagem && !ent.tem_audio && 
     // 1º passo: o perfil (tocado no menu ou escrito)
     const perfil = PERFIS[t] || (!ctx.perfil ? perfilEscrito(t) : null);
     if (perfil && !ctx.perfil) {
-      return fixa({ resposta: MSG.SUGESTAO_PEDIR, novo_contexto: { perfil }, evento: '-' });
+      return fixa({ resposta: MSG.SUGESTAO_PEDIR, novo_contexto: { ...ctx, perfil }, evento: '-' });
     }
     // 2º passo: a sugestão em si
     const texto = semDadosPessoais(d.texto);
@@ -182,7 +182,7 @@ if (d.estado_atual === 'aguardando_sugestao' && !temImagem && !ent.tem_audio && 
     }
     return fixa({
       resposta: MSG.SUGESTAO_OBRIGADO, acao: 'sugestao', novo_estado: 'aguardando_receita', novo_contexto: {},
-      evento: 'sugestao', detalhe: { perfil: ctx.perfil || 'nao_informado', via: ent.via_audio ? 'audio' : 'texto', texto },
+      evento: 'sugestao', detalhe: { perfil: ctx.perfil || 'nao_informado', via: ent.via_audio ? 'audio' : 'texto', texto, ...ufDaSugestao(ctx, ent.para) },
       botoes: [BT.OUTRA_RECEITA, BT.MENU],
     });
   }

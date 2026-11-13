@@ -13,4 +13,4 @@ const fatos = {
 };
 
 const content = [{ type: 'text', text: 'FATOS: ' + JSON.stringify(fatos) }];
-return [{ json: { fatos, tem_insumo: itens.some((i) => i.tipo === 'insumo' && i.situacao === 'na_lista'), claude_body: corpoClaude(PROMPT_REDACAO, content, 2000) } }];
+return [{ json: { fatos, tem_insumo: itens.some((i) => i.tipo === 'insumo' && i.situacao === 'na_lista'), claude_body: corpoClaude(PROMPT_REDACAO, content, 2000, null, MODELO_REDACAO) } }];

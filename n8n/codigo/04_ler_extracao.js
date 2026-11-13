@@ -27,11 +27,15 @@ if (ext.assunto === 'local' || (local && !(ext.medicamentos || []).length)) {
 if (ext.assunto === 'opiniao' && !d.imagem_base64) {
   const texto = semDadosPessoais(d.texto);
   if (texto) {
-    let viaAudio = false;
-    try { viaAudio = !!$('Entrada → formato padrão').first().json.via_audio; } catch (e) { viaAudio = false; }
+    let viaAudio = false, telefone = null;
+    try {
+      const ent = $('Entrada → formato padrão').first().json;
+      viaAudio = !!ent.via_audio;
+      telefone = ent.para; // usado só para achar o estado pelo DDD; o número não é guardado
+    } catch (e) { viaAudio = false; }
     return parar({
       resposta: MSG.OPINIAO_OBRIGADO, acao: 'sugestao', evento: 'sugestao',
-      detalhe: { perfil: 'nao_informado', via: viaAudio ? 'audio' : 'texto', texto, espontanea: true },
+      detalhe: { perfil: 'nao_informado', via: viaAudio ? 'audio' : 'texto', texto, espontanea: true, ...ufDaSugestao(d.contexto, telefone) },
       botoes: [BT.OUTRA_RECEITA, BT.MENU],
     });
   }

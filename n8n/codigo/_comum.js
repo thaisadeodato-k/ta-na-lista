@@ -1,5 +1,9 @@
 // ===== Trechos comuns (vêm de n8n/codigo/_comum.js) =====
+// Ler a receita (foto/PDF/texto) é a parte difícil: fica no modelo mais forte.
 const MODELO_CLAUDE = 'claude-opus-5-5';
+// Escrever a resposta do Zé a partir dos FATOS é simples: modelo bem mais barato.
+// Para voltar ao Opus nessa etapa, troque por MODELO_CLAUDE.
+const MODELO_REDACAO = 'claude-haiku-5-5';
 // Se a API do Claude reclamar do campo "fallbacks", troque para false.
 const USAR_FALLBACK = true;
 
@@ -174,6 +178,34 @@ const MENU_DOENCAS = {
   }],
 };
 
+// Estado (UF) de quem manda a sugestão, para saber em que partes do Brasil o Tá na Lista é usado.
+// Guarda SÓ a sigla (ex.: PB), nunca o número. 1º o lugar que a pessoa informou (CEP ou cidade);
+// se não informou, o DDD do número (é onde a linha foi registrada, não necessariamente onde ela está).
+const UF_POR_DDD = {};
+[['SP', '11 12 13 14 15 16 17 18 19'], ['RJ', '21 22 24'], ['ES', '27 28'], ['MG', '31 32 33 34 35 37 38'],
+ ['PR', '41 42 43 44 45 46'], ['SC', '47 48 49'], ['RS', '51 53 54 55'], ['DF', '61'], ['GO', '62 64'],
+ ['TO', '63'], ['MT', '65 66'], ['MS', '67'], ['AC', '68'], ['RO', '69'], ['BA', '71 73 74 75 77'], ['SE', '79'],
+ ['PE', '81 87'], ['AL', '82'], ['PB', '83'], ['RN', '84'], ['CE', '85 88'], ['PI', '86 89'], ['PA', '91 93 94'],
+ ['AM', '92 97'], ['RR', '95'], ['AP', '96'], ['MA', '98 99']]
+  .forEach(([uf, ddds]) => ddds.split(' ').forEach((ddd) => { UF_POR_DDD[ddd] = uf; }));
+function ufDoTelefone(num) {
+  const s = (num || '').toString().replace(/\D/g, '');
+  return /^55\d{10,11}$/.test(s) ? (UF_POR_DDD[s.slice(2, 4)] || null) : null;
+}
+function ufLocalDe(ctx) {
+  const c = ctx || {};
+  const u = (c.uf_local || (c.local || {}).uf || '').toString().trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(u) ? u : null;
+}
+// Para levar o estado do lugar informado até o fim da sugestão (o contexto é zerado ao começar)
+const ufLocalCtx = (ctx) => (ufLocalDe(ctx) ? { uf_local: ufLocalDe(ctx) } : {});
+function ufDaSugestao(ctx, telefone) {
+  const local = ufLocalDe(ctx);
+  if (local) return { uf: local, uf_fonte: 'local' };
+  const ddd = ufDoTelefone(telefone);
+  return ddd ? { uf: ddd, uf_fonte: 'ddd' } : {};
+}
+
 // Tira CPF, telefone, e-mail e números longos do texto de uma sugestão antes de guardar
 function semDadosPessoais(s) {
   return String(s || '')
@@ -215,16 +247,21 @@ function lerRespostaClaude(r) {
 }
 
 // Monta o corpo da chamada ao Claude
-function corpoClaude(system, content, max_tokens, schema) {
+function corpoClaude(system, content, max_tokens, schema, modelo) {
+  const model = modelo || MODELO_CLAUDE;
+  const ehHaiku = /haiku/.test(model);
   const corpo = {
-    model: MODELO_CLAUDE,
+    model,
     max_tokens,
     system,
     messages: [{ role: 'user', content }],
     output_config: { effort: 'low' },
   };
   if (schema) corpo.output_config.format = { type: 'json_schema', schema };
-  if (USAR_FALLBACK) corpo.fallbacks = 'default';
+  // Haiku: sem "pensar" antes (texto curto e simples) e sem fallback (esse modelo não tem;
+  // se ele recusar, "Conferir redação" usa o texto fixo).
+  if (ehHaiku) corpo.thinking = { type: 'disabled' };
+  else if (USAR_FALLBACK) corpo.fallbacks = 'default';
   return corpo;
 }
 

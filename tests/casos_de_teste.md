@@ -118,6 +118,9 @@
 | 56 | qualquer | `quero excluir minha conversa`, `pode apagar`, `deleta tudo`, `como apago meus dados?` | Pergunta se quer mesmo apagar, com os botões **Sim, apagar** e **Não, manter**. **Não** apaga sozinho. |
 | 57 | qualquer | `APAGAR` → toque em **Não, manter** (ou escreva `não`) | "Tudo bem, não apaguei nada". A conversa continua de onde estava. |
 | 57b | qualquer | `APAGAR` → `losartana 50` | Esquece o pedido de apagar e lê o remédio normalmente. Um `SIM` depois **não** apaga. |
+| 60 | qualquer, número com DDD 83 | `SUGESTÃO` → perfil → `podia ter letra maior` | Em `sugestao`, `uf` = PB e `uf_fonte` = ddd. O número não aparece em lugar nenhum. |
+| 61 | já informou CEP de São Paulo, número com DDD 83 | `SUGESTÃO` → perfil → `podia ter letra maior` | `uf` = SP e `uf_fonte` = local (o lugar informado vale mais que o DDD). |
+| 62 | Fase 1 (chat de teste, sem número) | `SUGESTÃO` → perfil → texto | Salva normal, com `uf` vazio. |
 | 58 | aguardando_sugestao | `seria bom poder apagar os dados` | Guarda como sugestão. **Não** apaga nada. |
 | 59 | qualquer | `esquece` | **Não** apaga (precisa de "meus dados" ou "tudo"). |
 

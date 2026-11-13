@@ -116,7 +116,13 @@ Você vai precisar de: conta no **Supabase** (grátis), conta no **n8n Cloud** (
 - **A foto não chega**: confira se o nó **Chat de teste (Fase 1)** está com **Allow File Uploads** ligado (Options).
 
 ### Sobre o "fallbacks"
-As chamadas ao Claude usam `fallbacks: "default"`. Se o modelo principal recusar por engano um pedido (filtro de segurança), a própria API tenta de novo num modelo alternativo, sem você fazer nada. Para desligar, use `USAR_FALLBACK = false` (ver acima).
+A chamada que **lê a receita** usa `fallbacks: "default"`. Se o modelo principal recusar por engano um pedido (filtro de segurança), a própria API tenta de novo num modelo alternativo, sem você fazer nada. Para desligar, use `USAR_FALLBACK = false` (ver acima).
+
+### Qual modelo faz o quê
+- **Ler a receita** (nó *Claude: ler receita*): `MODELO_CLAUDE` = Claude Opus 5.5. É a parte difícil (foto, letra, nome de marca), então fica no modelo mais forte.
+- **Escrever a resposta do Zé** (nó *Claude: redigir resposta do Zé*): `MODELO_REDACAO` = Claude Haiku 5.5, cerca de 40 vezes mais barato. O banco já decidiu o que é de graça; o modelo só escreve o texto. Ele não tem `fallbacks`: se recusar ou errar, o nó *Conferir redação* usa o texto fixo (sem IA).
+- Para voltar ao Opus na resposta: em `n8n/codigo/_comum.js`, troque `MODELO_REDACAO = 'claude-haiku-5-5'` por `MODELO_REDACAO = MODELO_CLAUDE` e gere o fluxo de novo.
+- Para comparar os dois antes de decidir: `node scripts/comparar_redacao.mjs` (precisa da chave em `ANTHROPIC_API_KEY`; custa poucos centavos). O resultado sai em `tests/comparacao_redacao.md`.
 
 ---
 

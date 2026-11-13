@@ -2,7 +2,7 @@
 -- Também dá pra ver e editar direto em: Table Editor > sugestao (e exportar em CSV).
 
 -- 1) Backlog: tudo, das mais novas para as mais antigas
-select id, criada_em, perfil, texto, status, tema, nota, feita_em
+select id, criada_em, perfil, uf, texto, status, tema, nota, feita_em
 from public.sugestao
 order by criada_em desc, id desc;
 
@@ -16,6 +16,15 @@ order by id;
 select perfil, count(*) as sugestoes
 from public.sugestao
 group by perfil
+order by sugestoes desc;
+
+-- 3b) De onde vêm as sugestões (por estado)
+--      uf_fonte 'local' = estado do lugar que a pessoa informou; 'ddd' = estado do DDD do número
+select coalesce(uf, '(sem estado)') as uf, count(*) as sugestoes,
+       count(*) filter (where uf_fonte = 'local') as pelo_lugar_informado,
+       count(*) filter (where uf_fonte = 'ddd') as pelo_ddd
+from public.sugestao
+group by 1
 order by sugestoes desc;
 
 -- 4) Participação por mês

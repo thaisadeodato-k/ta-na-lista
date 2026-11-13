@@ -119,6 +119,9 @@ create table if not exists public.sugestao (
              check (perfil in ('paciente', 'familia', 'farmacia', 'saude', 'nao_informado')),
   texto      text not null check (length(texto) between 1 and 1000),
   via        text not null default 'texto' check (via in ('texto', 'audio')),
+  -- Estado de onde veio (só a sigla). uf_fonte: 'local' = lugar que a pessoa informou; 'ddd' = DDD do número
+  uf         text check (uf ~ '^[A-Z]{2}$'),
+  uf_fonte   text check (uf_fonte in ('local', 'ddd')),
   -- Para o backlog (preenchido à mão no Supabase):
   status     text not null default 'recebida'
              check (status in ('recebida', 'em_analise', 'planejada', 'feita', 'nao_vamos_fazer')),
@@ -649,9 +652,12 @@ begin
     end if;
     -- Sugestão: vai para a tabela própria, sem nenhuma ligação com a pessoa
     if p_acao = 'sugestao' and coalesce(btrim(p_detalhe->>'texto'), '') <> '' then
-      insert into sugestao (perfil, texto, via)
+      insert into sugestao (perfil, texto, via, uf, uf_fonte)
       values (coalesce(p_detalhe->>'perfil', 'nao_informado'), left(btrim(p_detalhe->>'texto'), 1000),
-              coalesce(p_detalhe->>'via', 'texto'));
+              coalesce(p_detalhe->>'via', 'texto'),
+              case when p_detalhe->>'uf' ~ '^[A-Z]{2}$' then p_detalhe->>'uf' end,
+              case when p_detalhe->>'uf' ~ '^[A-Z]{2}$' and p_detalhe->>'uf_fonte' in ('local', 'ddd')
+                   then p_detalhe->>'uf_fonte' end);
       p_detalhe := p_detalhe - 'texto'; -- a métrica guarda só o perfil, nunca o texto
     end if;
     update usuario set visto_em = now() where usuario_hash = p_hash;
