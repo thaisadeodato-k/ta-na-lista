@@ -5,6 +5,16 @@ Bot de WhatsApp (protótipo) que ajuda **idosos e cuidadores** a descobrir se o 
 > Projeto voluntário do programa **AI4Good (Brazil Conference)**.
 > **Não é canal oficial do governo.** As informações vêm da lista oficial publicada pelo Ministério da Saúde.
 
+## In English
+
+**Tá na Lista** ("It's on the list") is a prototype WhatsApp assistant that helps older people and their caregivers in Brazil find out whether a prescribed medicine is free through **Farmácia Popular**, a federal programme, and where to collect it.
+
+- **How it works:** people send a prescription as a photo, PDF, text or voice message. The assistant, "Zé da Farma", shows what it read and asks for confirmation. A **SQL query against the official Ministry of Health list** decides whether each medicine is covered — **the AI never makes that decision**. If it is covered, the bot asks for a postcode or city and lists the nearest accredited pharmacies and what to bring.
+- **Role of AI:** the Claude API only (1) reads the prescription into structured JSON and (2) drafts the reply from facts already decided by the database; if a reply breaks the rules, a fixed, non-AI message is sent instead. Groq (Whisper) transcribes voice messages.
+- **Stack:** WhatsApp Cloud API · n8n Cloud · Claude API · Groq · Supabase (PostgreSQL) · BrasilAPI.
+- **Privacy by design (Brazil's LGPD):** no prescription images, audio, names or ID numbers are stored; phone numbers are kept only as keyed hashes; conversations expire after 24 hours; users can delete their data at any time.
+- **Status:** prototype, built as a volunteer social-impact project for AI4Good (Brazil Conference). Not an official government channel.
+
 ## Como funciona
 
 Quem conversa com a pessoa é o **Zé da Farma**, o atendente do Tá na Lista: simpático, direto e com frases curtas.
@@ -102,6 +112,13 @@ Quando o Ministério atualizar a lista:
 1. atualize `data/elenco_pfp.csv`;
 2. rode `node scripts/gerar_seed.mjs`;
 3. cole o novo `db/seed.sql` no Supabase.
+
+## Créditos / Credits
+
+- **Idealização, design e desenvolvimento / Idea, design and development:** Thaís Adeodato — [LinkedIn](https://www.linkedin.com/in/thais-morais-adeodato-porto/)
+- **Equipe AI4Good (Brazil Conference) / AI4Good team:**
+  - Jordean Amaro — [LinkedIn](https://www.linkedin.com/in/jordean-amaro/)
+  - João Augusto Coelho — [LinkedIn](https://www.linkedin.com/in/jo%C3%A3o-augusto-coelho-57b098228/)
 
 ## Licença
 
