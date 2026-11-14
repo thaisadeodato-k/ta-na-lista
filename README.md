@@ -7,29 +7,45 @@ Bot de WhatsApp (protótipo) que ajuda **idosos e cuidadores** a descobrir se o 
 
 ## Como funciona
 
-Quem fala com a pessoa é o **Zé da Farma**, simpático e direto:
+Quem conversa com a pessoa é o **Zé da Farma**, o atendente do Tá na Lista: simpático, direto e com frases curtas.
 
-> "Oi, eu sou o Zé! Manda a foto da receita que eu vejo se tá na lista."
+> "Oi, eu sou o Zé da Farma! Manda a foto da receita que eu vejo se tá na lista."
 
-1. A pessoa aceita o termo de uso (responde **SIM**).
-2. Manda a **foto da receita** ou escreve o nome do remédio.
-3. O Zé mostra o que leu e pede confirmação.
-4. Uma **consulta SQL à base oficial** decide se o remédio está na lista. **Quem decide nunca é a IA.**
-5. Se estiver na lista, o Zé pede o **CEP** e mostra as **3 farmácias credenciadas mais próximas** e o que levar (receita válida, documento com foto e CPF; outra pessoa pode retirar com procuração).
-6. Se não estiver na lista, orienta procurar a **UBS** ou a **farmácia municipal**.
+1. A pessoa aceita o termo de uso (botão **Sim, pode ser** ou responde **SIM**).
+2. Manda a receita do jeito que preferir: **foto**, **PDF**, **texto** ou **áudio**. Pode mandar o lugar junto, por exemplo "losartana, moro em Campina Grande".
+3. O Zé mostra o que leu e pede confirmação (**Tá certo** / **Tá errado**).
+4. Uma **consulta SQL à base oficial** decide se cada remédio está na lista, inclusive pelo nome de marca (ex.: Glifage → metformina). **Quem decide nunca é a IA.**
+5. Se algum remédio estiver na lista, o Zé pede o **CEP** ou a **cidade e o bairro** e mostra as **farmácias credenciadas mais próximas**, com o que levar: receita válida, documento com foto e CPF. Outra pessoa pode retirar com procuração.
+6. Se o remédio não estiver na lista, o Zé orienta procurar a **UBS** (posto de saúde) ou a **farmácia municipal**.
+
+Hoje **todos os 41 itens da lista são de graça**. Desde 14/02/2025 o programa não tem mais itens com desconto (copagamento).
+
+### O que mais dá pra fazer
+
+O menu **Ver opções** reúne tudo:
+
+| Opção | O que faz |
+|---|---|
+| 📸 Mandar uma receita | Foto, PDF, texto ou áudio |
+| 💊 O que é de graça | Mostra a lista oficial (também por doença: pressão, diabetes…) |
+| 💡 Dar uma sugestão | Guarda a sugestão de forma anônima, com o perfil de quem usa e só a sigla do estado |
+| 💬 Sobre o projeto | Quem fez o Tá na Lista |
+| 🗑️ Apagar meus dados | Pede confirmação e apaga tudo o que está ligado ao número |
+
+O Zé também entende pedidos escritos do jeito da pessoa, como "apaga meus dados" ou "quero corrigir a cidade", sem precisar de comando exato.
 
 ### Fluxo de estados
 
 ```
-novo ──SIM──► aguardando_receita ──foto/texto──► aguardando_confirmacao ──SIM──► aguardando_cep ──CEP──► concluido
-                     ▲                                   │ NÃO                       (se nada estiver na lista: concluido)
-                     └───────────────────────────────────┘
+novo ──SIM──► aguardando_receita ──foto/PDF/texto/áudio──► aguardando_confirmacao ──SIM──► aguardando_cep ──CEP ou cidade──► concluido
+                     ▲                                             │ NÃO                         (se nada estiver na lista: concluido)
+                     └─────────────────────────────────────────────┘
 ```
 
 ## O que o Zé **nunca** faz
 
-- Falar de dose, efeito, troca, interação ou indicação de remédio (encaminha para médico/farmacêutico).
-- Pedir senha, cartão, Pix ou dados bancários.
+- Falar de dose, efeito, troca, interação ou indicação de remédio. Ele encaminha para o médico ou o farmacêutico.
+- Pedir senha, cartão, Pix, dados bancários ou CPF por mensagem.
 - Conversar sobre temas fora do Farmácia Popular (política de IA do WhatsApp).
 - Dizer que é canal oficial do governo.
 
@@ -37,33 +53,38 @@ novo ──SIM──► aguardando_receita ──foto/texto──► aguardando_
 
 | Peça | Papel |
 |---|---|
-| **n8n Cloud** | Orquestra a conversa (Fase 1: chat de teste do n8n; Fase 2: WhatsApp Cloud API) |
-| **Claude API** (modelo `claude-opus-5-5`, com visão) | Só duas tarefas: (1) ler a receita e devolver JSON; (2) redigir a resposta do Zé a partir de fatos já consultados |
-| **Supabase (Postgres)** | Base oficial, regras de busca, farmácias, estado da conversa e métricas |
+| **WhatsApp Cloud API** (Meta) | Recebe e envia as mensagens, com botões e menus |
+| **n8n Cloud** | Orquestra a conversa. Tem também um chat de teste (Fase 1) e um fluxo que atualiza as farmácias a cada 15 dias |
+| **Claude API** (Anthropic) | Só duas tarefas: (1) **ler a receita** e devolver JSON, com o **Claude Opus 5.5**; (2) **escrever a resposta do Zé** a partir de fatos já decididos pelo banco, com o **Claude Haiku 5.5**, mais barato. Se a resposta vier fora das regras, entra um texto fixo, sem IA |
+| **Groq** (Whisper) | Transforma áudio em texto, só depois que a pessoa aceitou os termos |
+| **Supabase (Postgres)** | Lista oficial, marcas e sinônimos, farmácias, regras de busca, estado da conversa, sugestões e métricas anônimas |
+| **BrasilAPI** | Descobre a cidade e o bairro a partir do CEP |
 
-O fluxo do n8n tem **uma entrada** ("Entrada → formato padrão") e **uma saída** ("Saída → chat"). Na Fase 2, basta trocar essas duas pontas pelas do WhatsApp. Veja [docs/configuracao.md](docs/configuracao.md).
+O fluxo tem **uma entrada** ("Entrada → formato padrão") e **uma saída**. O "meio" é o mesmo no chat de teste e no WhatsApp. Passo a passo em [docs/configuracao.md](docs/configuracao.md).
 
 ## LGPD: privacidade desde o início
 
-- **Não guardamos**: foto da receita, nome do paciente, nome do médico, CPF, texto livre.
-- O identificador da pessoa (telefone/sessão) vira um **hash HMAC-SHA256** com chave secreta guardada no banco.
+- **Não guardamos**: foto, PDF ou áudio da receita, nome do paciente, nome do médico, CPF nem o texto que a pessoa escreveu.
+- O número de telefone vira um **hash HMAC-SHA256**, com chave secreta guardada no banco. O número em si nunca é salvo.
 - A conversa guarda só o **estado** e referências à lista oficial, e **expira em 24 horas**.
-- O comando **APAGAR** remove os dados da pessoa na hora.
-- Sem uso por **6 meses**, o código e o consentimento são apagados automaticamente (limpeza a cada hora, `pg_cron`).
-- O n8n **não guarda** execuções que deram certo; as com erro somem sozinhas em até 7 dias.
-- As métricas são anônimas (não ligam a nenhuma pessoa).
-- A foto é enviada à API do Claude apenas para leitura. Ela não fica salva no projeto.
+- **Apagar meus dados** (botão ou pedido escrito) apaga tudo na hora, depois de confirmar.
+- Sem uso por **6 meses**, o código e o consentimento são apagados automaticamente (limpeza a cada hora, com `pg_cron`).
+- As **sugestões** são anônimas: sem número, sem código, com a data só do dia e só a sigla do estado. CPF, telefone e e-mail escritos no texto são trocados por "[removido]".
+- O n8n **não guarda** execuções que deram certo, e as com erro somem sozinhas em até 7 dias.
+- As métricas são anônimas e não ligam a nenhuma pessoa.
+
+Detalhes em [docs/privacidade.md](docs/privacidade.md) e [docs/termos.md](docs/termos.md).
 
 ## Estrutura do repositório
 
 ```
-data/      CSVs: lista oficial (41 itens), marcas, sinônimos, farmácias de exemplo
-db/        schema.sql (tabelas e funções) e seed.sql (dados prontos)
-prompts/   prompt de extração da receita e prompt de redação do Zé
-n8n/       fluxo importável da Fase 1 + código de cada nó (para leitura)
-scripts/   geradores do seed.sql e do fluxo n8n
-tests/     20 casos de teste com a resposta esperada
-docs/      passo a passo de configuração (Fase 1 e Fase 2)
+data/      CSVs: lista oficial (41 itens), marcas, sinônimos e farmácias credenciadas
+db/        schema.sql (tabelas e funções), seed.sql (dados prontos) e migracoes/ (mudanças em bancos já criados)
+prompts/   prompt de leitura da receita (+ schema JSON) e prompt de redação do Zé
+n8n/       fluxos importáveis (chat de teste, WhatsApp, atualização das farmácias) + código de cada nó em codigo/
+scripts/   geradores do seed.sql e dos fluxos, importador de farmácias e comparação de modelos do Claude
+tests/     casos de teste com a resposta esperada e conferências do banco
+docs/      configuração passo a passo, política de privacidade e termos de uso
 ```
 
 ## Fonte dos dados
@@ -72,9 +93,15 @@ docs/      passo a passo de configuração (Fase 1 e Fase 2)
   <https://www.gov.br/saude/pt-br/composicao/sectics/farmacia-popular/arquivos/elenco-de-medicamentos-e-insumos-pfpb.pdf>
   - O PDF traz princípio ativo, concentração e indicação. **A coluna `forma` não está no PDF**: foi preenchida com a apresentação usual e precisa ser **conferida por farmacêutico**.
 - **Marcas comerciais** (`marca_principio.csv`): lista inicial, **a revisar por farmacêutico**.
-- **Farmácias** (`farmacias_pfpb.csv`): lista oficial "Farmácias participantes do PFPB", Ministério da Saúde (lista de 02/10/2026, 27.538 farmácias). O banco é **atualizado sozinho a cada 15 dias** pelo fluxo `n8n/ta_na_lista_atualizar_farmacias.json` (com conferências de segurança e e-mail de aviso se falhar); o CSV do repositório é só uma foto da lista de 02/10/2026. Para atualizar à mão: `node scripts/importar_farmacias.mjs planilha.xlsx` (ver [docs/configuracao.md](docs/configuracao.md#parte-4--farmácias-do-programa-lista-oficial)).
+- **Farmácias** (`farmacias_pfpb.csv`): lista oficial "Farmácias participantes do PFPB", do Ministério da Saúde (lista de 02/10/2026, com 27.538 farmácias).
+  - O banco é **atualizado sozinho a cada 15 dias** pelo fluxo `n8n/ta_na_lista_atualizar_farmacias.json`, que faz conferências de segurança e manda e-mail de aviso se algo falhar.
+  - O CSV do repositório é só uma foto da lista de 02/10/2026.
+  - Para atualizar à mão, rode `node scripts/importar_farmacias.mjs planilha.xlsx` (ver [docs/configuracao.md](docs/configuracao.md#parte-4--farmácias-do-programa-lista-oficial)).
 
-Quando o Ministério atualizar a lista, atualize `data/elenco_pfp.csv`, rode `node scripts/gerar_seed.mjs` e cole o novo `db/seed.sql` no Supabase.
+Quando o Ministério atualizar a lista:
+1. atualize `data/elenco_pfp.csv`;
+2. rode `node scripts/gerar_seed.mjs`;
+3. cole o novo `db/seed.sql` no Supabase.
 
 ## Licença
 
